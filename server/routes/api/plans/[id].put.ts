@@ -1,0 +1,22 @@
+import { useMediator } from "@core/cqrs";
+import { upsertPlanCommand } from "@core/handlers/upsert-plan";
+
+export default defineEventHandler(async (event) => {
+   const id = getRouterParam(event, "id")!;
+   const body = await readBody(event);
+   const mediator = useMediator();
+   return mediator.send(upsertPlanCommand({
+      id,
+      name: body.name,
+      description: body.description,
+      provider: body.provider,
+      source: body.source,
+      createdBy: body.createdBy,
+      amountMinor: body.amountMinor,
+      currency: body.currency,
+      billingPeriod: body.billingPeriod,
+      trialDays: body.trialDays,
+      features: body.features,
+      isPublic: body.isPublic,
+   }));
+});

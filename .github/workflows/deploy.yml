@@ -1,0 +1,40 @@
+name: Deploy
+
+on: {} # suppressed — Deno Deploy walkthrough will create the workflow
+
+jobs:
+    deploy:
+        name: Deploy to Deno Deploy
+        runs-on: ubuntu-latest
+
+        permissions:
+            id-token: write # required for OIDC token (deployctl auth)
+            contents: read
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: latest
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Build (deno-deploy preset)
+              run: pnpm build
+              env:
+                  NITRO_PRESET: deno-deploy
+
+            - name: Deploy to Deno Deploy
+              uses: denoland/deployctl@v1
+              with:
+                  project: sub-app # change to your Deno Deploy project name
+                  entrypoint: server/index.ts
+                  root: .output
+                  # PR pushes deploy as preview, main deploys to production

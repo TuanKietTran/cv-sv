@@ -8,6 +8,7 @@ A full-stack subscription management platform built on [Nuxt 4](https://nuxt.com
 |---|---|
 | [Architecture](./docs/architecture.md) | Layered architecture, module map, domain model, boot sequence |
 | [Extending](./docs/extending.md) | How to add handlers, deploy strategies, policies, and API routes |
+| [CV Server Workflows](./specs/cv-server-workflows.md) | Target CV workflows, MCP surface, core handlers, ports, and implementation order |
 
 ## Quick Start
 
@@ -67,6 +68,26 @@ sub/
 | Lifecycle | `POST /api/subscriptions/:id/cancel`, `pause`, `resume`, `renew` |
 | Plan change | `PUT /api/subscriptions/:id/plan-change`, `DELETE /api/subscriptions/:id/plan-change` |
 | IAM | `POST /api/iam/check-access`, `GET/PUT/DELETE /api/iam/subjects/:userId` |
+
+## CV editor API and MCP
+
+Markdown and CSS are persisted in Nitro storage (`.data/cv` locally). Browser and agent edits use revision-based optimistic concurrency and are broadcast to open editors over SSE.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/cvs` | List documents |
+| `GET /api/cvs/:id` | Open Markdown, CSS, and revision |
+| `PUT /api/cvs/:id` | Save with optional `expectedRevision` |
+| `GET /api/cvs/:id/events` | Subscribe to real-time updates |
+
+```bash
+pnpm dev
+# Connect an MCP Streamable HTTP client to http://localhost:3000/mcp
+```
+
+The stateless Streamable HTTP endpoint exposes `list_cvs`, `open_cv`, `save_cv`, and `patch_cv`.
+
+The editor can export PDF through the browser print pipeline, or render every CV sheet as a 2× PNG/JPEG image from the header actions.
 
 ## Development
 

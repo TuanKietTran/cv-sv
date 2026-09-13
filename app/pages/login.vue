@@ -1,7 +1,12 @@
 <script setup lang="ts">
-useHead({ title: "sub — Login" });
-
 const mode = ref<"login" | "signup">("login");
+const pageTitle = computed(() =>
+    mode.value === "login" ? "Login" : "Create account",
+);
+useSeoMeta({
+    title: () => pageTitle.value,
+    ogTitle: () => pageTitle.value,
+});
 const email = ref("");
 const password = ref("");
 const name = ref("");

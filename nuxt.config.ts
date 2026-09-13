@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const corePath = fileURLToPath(new URL("./core", import.meta.url));
@@ -20,11 +21,51 @@ export default defineNuxtConfig({
       "@infra": infraPath,
    },
 
+   vite: {
+      optimizeDeps: {
+         include: [
+            "@codemirror/state",
+            "@codemirror/view",
+            "@codemirror/commands",
+            "@codemirror/language",
+            "@lezer/highlight",
+            "@codemirror/lang-markdown",
+            "@codemirror/lang-css",
+            "@codemirror/language-data",
+            "@codemirror/theme-one-dark",
+         ],
+      },
+      resolve: {
+         dedupe: [
+            "@codemirror/state",
+            "@codemirror/view",
+            "@codemirror/language",
+            "@lezer/highlight",
+         ],
+      },
+   },
+
    nitro: {
+      storage: {
+         // Canonical CV documents shared by the browser API and agent adapters.
+         cv: {
+            driver: "fs",
+            base: process.env.CV_DATA_DIR ?? "./.data/cv",
+         },
+      },
       esbuild: {
          options: {
             target: "es2022",
          },
+      },
+      rollupConfig: {
+         plugins: [{
+            name: "cv-raw-assets",
+            load(id) {
+               if (!id.endsWith("?raw")) return null;
+               return `export default ${JSON.stringify(readFileSync(id.slice(0, -4), "utf8"))}`;
+            },
+         }],
       },
       alias: {
          "@core": corePath,

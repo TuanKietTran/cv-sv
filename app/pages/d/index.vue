@@ -7,8 +7,6 @@ import type {
 } from "~/types/api";
 import type { StatusCode, BillingPeriod, CurrencyCode } from "@core/domain";
 
-useHead({ title: "sub — Dashboard" });
-
 const route = useRoute();
 const userId = computed(() => (route.query.userId as string) || "demo");
 
@@ -29,6 +27,14 @@ const plans = computed<UIPlan[]>(() => plansData.value?.plans ?? []);
 const subs = computed<UISubscription[]>(
     () => subsData.value?.subscriptions ?? [],
 );
+const pageTitle = computed(() => {
+    const count = subs.value.length;
+    return `${count} Subscription${count === 1 ? "" : "s"}`;
+});
+useSeoMeta({
+    title: () => pageTitle.value,
+    ogTitle: () => pageTitle.value,
+});
 
 const planMap = computed(() => {
     const m: Record<string, UIPlan> = {};

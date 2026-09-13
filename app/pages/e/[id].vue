@@ -1,53 +1,47 @@
 <script setup lang="ts">
-import referenceCvMarkdown from "~/data/reference-cv.md?raw";
 import referenceCvCss from "~/data/reference-cv.css?raw";
 import { exportCvImages, type CvImageFormat } from "~/utils/exportCvImage";
 import type { MarkdownFormat } from "~/composables/useCodeMirror";
 
 definePageMeta({ layout: false });
 
+const route = useRoute();
+const documentId = String(route.params.id);
 type SourceTab = "markdown" | "css";
 const activeTab = ref<SourceTab>("markdown");
 const sourceEditor = ref<{ applyMarkdownFormat: (format: MarkdownFormat) => void } | null>(null);
-const {
-    markdown: document,
-    css: stylesheet,
-    revision,
-    saveState,
-} = await useCvDocument("master", {
-    markdown: referenceCvMarkdown,
+const { markdown, css, revision, saveState } = await useCvDocument(documentId, {
+    markdown: `# ${documentId}\n\nStart writing your CV.\n`,
     css: referenceCvCss,
 });
 const documentTitle = computed(
-    () => document.value.match(/^#\s+(.+)$/m)?.[1]?.trim() || "CV",
+    () => markdown.value.match(/^#\s+(.+)$/m)?.[1]?.trim() || documentId,
 );
 useSeoMeta({
     title: () => documentTitle.value,
     ogTitle: () => documentTitle.value,
 });
-const activeSource = computed({
-    get: () => activeTab.value === "markdown" ? document.value : stylesheet.value,
-    set: (value: string) => {
-        if (activeTab.value === "markdown") document.value = value;
-        else stylesheet.value = value;
-    },
-});
-
 const formatSource = (format: MarkdownFormat) => sourceEditor.value?.applyMarkdownFormat(format);
 const exportPdf = () => window.print();
 const exportImage = (format: CvImageFormat) =>
     exportCvImages(
         format,
-        `${documentTitle.value.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "CV"}-CV`,
-        stylesheet.value,
+        documentTitle.value.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || documentId,
+        css.value,
     );
+const activeSource = computed({
+    get: () => activeTab.value === "markdown" ? markdown.value : css.value,
+    set: (value: string) => {
+        if (activeTab.value === "markdown") markdown.value = value;
+        else css.value = value;
+    },
+});
 </script>
 
 <template>
     <NuxtLayout
         name="editor"
         :title="documentTitle"
-        app-label="CV"
         :save-state="saveState"
         :revision="revision"
         :formatting-enabled="activeTab === 'markdown'"
@@ -57,35 +51,25 @@ const exportImage = (format: CvImageFormat) =>
     >
         <template #editor-tabs>
             <button
+                v-for="tab in (['markdown', 'css'] as const)"
+                :key="tab"
                 class="source-tab"
-                :class="{ 'source-tab--active': activeTab === 'markdown' }"
+                :class="{ 'source-tab--active': activeTab === tab }"
                 type="button"
-                @click="activeTab = 'markdown'"
+                @click="activeTab = tab"
             >
-                content.md
-            </button>
-            <button
-                class="source-tab"
-                :class="{ 'source-tab--active': activeTab === 'css' }"
-                type="button"
-                @click="activeTab = 'css'"
-            >
-                style.css
+                {{ tab === "markdown" ? "content.md" : "style.css" }}
             </button>
         </template>
 
         <template #editor>
             <ClientOnly>
-                <EditorCodeMirror
-                    ref="sourceEditor"
-                    v-model="activeSource"
-                    :language="activeTab"
-                />
+                <EditorCodeMirror ref="sourceEditor" v-model="activeSource" :language="activeTab" />
             </ClientOnly>
         </template>
 
         <template #preview>
-            <CodePreview :doc="document" :css="stylesheet" />
+            <CodePreview :doc="markdown" :css="css" />
         </template>
     </NuxtLayout>
 </template>
@@ -101,7 +85,6 @@ const exportImage = (format: CvImageFormat) =>
     font-size: 12px;
     cursor: pointer;
 }
-
 .source-tab--active {
     color: var(--fg-text);
     border-bottom: 1px solid var(--accent);

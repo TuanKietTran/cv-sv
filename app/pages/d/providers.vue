@@ -2,8 +2,6 @@
 import type { UIPlan, PlansResponse } from "~/types/api";
 import type { CurrencyCode } from "@core/domain";
 
-useHead({ title: "sub — Providers" });
-
 const { data, status } = await useFetch<PlansResponse>("/api/plans", {
     query: { all: "true" },
 });
@@ -46,6 +44,14 @@ const providerGroups = computed(() => {
             return a.localeCompare(b);
         })
         .map(([name, provPlans]) => ({ name, plans: provPlans }));
+});
+const pageTitle = computed(() => {
+    const count = providerGroups.value.length;
+    return `${count} Provider${count === 1 ? "" : "s"}`;
+});
+useSeoMeta({
+    title: () => pageTitle.value,
+    ogTitle: () => pageTitle.value,
 });
 
 const loading = computed(() => status.value === "pending");

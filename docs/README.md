@@ -8,6 +8,7 @@
 |---|---|
 | [Architecture](./architecture.md) | Layered architecture, module map, domain model, boot sequence |
 | [Extending](./extending.md) | How to add handlers, deploy strategies, policies, and API routes |
+| [CV Server Workflows](../specs/cv-server-workflows.md) | Target CV application workflows, MCP surface, core handlers, ports, and staged implementation order |
 
 ## Quick Start
 

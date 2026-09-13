@@ -2,8 +2,6 @@
 import type { UIPlan, PlansResponse } from "~/types/api";
 import type { BillingPeriod, CurrencyCode } from "@core/domain";
 
-useHead({ title: "sub — Plans" });
-
 const route = useRoute();
 const userId = computed(() => (route.query.userId as string) || "demo");
 
@@ -34,6 +32,13 @@ const myPlans = computed(() =>
 const tabPlans = computed(() =>
     activeTab.value === "mine" ? myPlans.value : plans.value,
 );
+const pageTitle = computed(() =>
+    `${tabPlans.value.length} ${activeTab.value === "mine" ? "My " : ""}Plans`,
+);
+useSeoMeta({
+    title: () => pageTitle.value,
+    ogTitle: () => pageTitle.value,
+});
 
 // ── Filters ───────────────────────────────────────────────────────────────────
 const search = ref("");

@@ -27,7 +27,7 @@ const emit = defineEmits<{
     createDocument: [];
     refreshDocuments: [];
     exportPdf: [];
-    exportImage: [format: "png" | "jpeg", options: { scale: number; quality: number }];
+    exportImage: [format: "png" | "jpeg", options: { scale: number; quality: number; root: HTMLElement | null }];
     format: [format: "bold" | "italic" | "link" | "heading" | "quote" | "bullet" | "code"];
     toggleIndicators: [];
 }>();
@@ -218,12 +218,14 @@ const isImportOpen = ref(false);
 const exportFormat = ref<"pdf" | "png" | "jpeg">("pdf");
 const exportScale = ref(2);
 const exportQuality = ref(95);
-const runExport = () => {
+const runExport = async () => {
     isExportOpen.value = false;
+    await nextTick();
     if (exportFormat.value === "pdf") emit("exportPdf");
     else emit("exportImage", exportFormat.value, {
         scale: exportScale.value,
         quality: exportQuality.value / 100,
+        root: previewContent.value,
     });
 };
 let previewObserver: MutationObserver | undefined;
@@ -1365,6 +1367,8 @@ button {
         display: none;
     }
 }
+
+@page { size: A4; margin: 0; }
 
 @media print {
     .editor-header,

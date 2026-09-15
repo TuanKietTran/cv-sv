@@ -88,13 +88,13 @@ Pagination occurs after Markdown rendering: generated `<hr>` elements split the 
 
 ## Export
 
-The PDF toolbar action calls `window.print()`. Print media rules hide editor chrome and expose the preview sheets; final destination and PDF generation are browser-owned.
+The PDF toolbar action closes its dialog, waits for Vue to remove the overlay, and then calls `window.print()`. Application-owned A4 `@page` and print-media rules hide editor chrome, reset preview zoom, and expose only the active preview sheets; final destination and PDF generation are browser-owned.
 
 PNG/JPEG export calls `exportCvImages()`:
 
 - waits for `document.fonts.ready` when available;
-- finds every `.cv-sheet` in the current document;
-- lazy-loads `html2canvas` and renders each sheet at 2× scale on white;
+- receives the active preview root from the editor layout and finds `.cv-sheet` pages only inside it, preventing another document/template preview from being exported;
+- temporarily resets the preview-only zoom to 100%, lazy-loads `html2canvas`, renders each sheet at the selected 1–3× scale on white, and restores the UI zoom even after failure;
 - encodes PNG or JPEG at quality `0.95` and triggers one browser download per sheet;
 - sanitizes the requested base filename and adds `-page-N` for multiple sheets.
 

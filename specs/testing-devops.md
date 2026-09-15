@@ -49,7 +49,7 @@ Do not commit generated Nuxt/Nitro output, `local.db`, `.data/cv`, rendered PDFs
 
 ## CI And Deployment
 
-The only checked-in workflow is `.github/workflows/deploy.yml`. Its trigger map is empty, so no GitHub Actions job currently runs. If enabled, it installs with a frozen lockfile, builds the Deno Deploy preset, and deploys `.output` through deployctl.
+The checked-in `.github/workflows/deploy.yml` runs on pushes to `main` and manual dispatch. It installs with pnpm 11.25.0 and a frozen lockfile, builds with the `deno-deploy` Nitro preset, and deploys `.output/server/index.ts` to the `ruxt` Deno Deploy project through deployctl OIDC. Concurrency cancels an older in-progress production deployment when a newer commit arrives.
 
 Issue and PR templates request layer classification, acceptance criteria, local `pnpm dev` testing, and screenshots/logs, but they do not execute checks.
 

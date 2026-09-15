@@ -57,7 +57,7 @@ CV source compatibility uses lazy, idempotent soft migrations rather than a data
 
 The package supports Nuxt dev/build/generate/preview. `NITRO_PRESET` may select a target. `.env.example` mentions `DATABASE_URL` for Neon and a node-server preset, but no current source reads `DATABASE_URL` and there is no PostgreSQL/Neon adapter.
 
-`.github/workflows/deploy.yml` contains a Deno Deploy build/deploy job, but workflow triggers are deliberately empty. The job expects Node 22, latest pnpm, frozen install, a `deno-deploy` Nitro build, and deployctl OIDC permissions.
+`.github/workflows/deploy.yml` deploys pushes to `main` and supports manual dispatch. The job uses Node 22, pinned pnpm 11.25.0, frozen install, a `deno-deploy` Nitro build, and deployctl OIDC permissions for the `ruxt` project. Deno KV uses the runtime-native `Deno.openKv()` API so the bundle does not include the Node-only `@deno/kv` N-API package.
 
 ## Current Gaps
 
@@ -68,4 +68,3 @@ The package supports Nuxt dev/build/generate/preview. `NITRO_PRESET` may select 
 - Deno KV plan saves do not remove an old user index if an existing plan changes creator or changes from user to catalog source.
 - Two parallel IAM adapter pairs use incompatible Deno key schemas, creating maintenance and accidental-import risk.
 - `.env.example` still documents an unused PostgreSQL requirement and omits `CV_URL` and `CHROMIUM_PATH` configuration.
-- The checked-in deployment workflow is disabled and still uses placeholder project metadata.

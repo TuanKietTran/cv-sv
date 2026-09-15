@@ -6,7 +6,7 @@ export interface PhoneRule {
    validate(raw: string): string | null;
 }
 
-export interface ValidatorFailure {
+export interface PhoneValidatorFailure {
    code: string;
    message: string;
 }
@@ -107,7 +107,7 @@ export const PHONE_NUMBER_RULES: Partial<Record<CountryTextCode, PhoneRule>> = {
 export class PhoneValidator {
    constructor(private readonly rules: ReadonlyArray<PhoneRule> = []) {}
 
-   validate(raw: string, countryCode: CountryCode): ValidatorFailure[] {
+   validate(raw: string, countryCode: CountryCode): PhoneValidatorFailure[] {
       const country = countryCode[0];
       const rules = [
          new RequiredPhoneRule(),

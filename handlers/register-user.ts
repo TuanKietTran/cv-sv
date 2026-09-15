@@ -1,5 +1,5 @@
 import { createHandler, useMediator } from "../cqrs";
-import { Email } from "../domain/iam";
+import { Email } from "../domain/email";
 import { PlainPassword, HashedPassword } from "../domain/iam";
 import type { PasswordHasher } from "../domain/iam";
 import type { UserRepository } from "../repos/user.repo";

@@ -7,5 +7,5 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, message: "userId query param required" });
    }
    const mediator = useMediator();
-   return mediator.send(listSubscriptionsQuery({ userId }));
+   return sendApiRequest(mediator, listSubscriptionsQuery({ userId }));
 });

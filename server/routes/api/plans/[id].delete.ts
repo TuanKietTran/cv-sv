@@ -4,5 +4,5 @@ import { deletePlanCommand } from "@core/handlers/delete-plan";
 export default defineEventHandler(async (event) => {
    const id = getRouterParam(event, "id")!;
    const mediator = useMediator();
-   return mediator.send(deletePlanCommand({ planId: id }));
+   return sendApiRequest(mediator, deletePlanCommand({ planId: id }));
 });

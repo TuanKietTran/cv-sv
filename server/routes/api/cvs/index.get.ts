@@ -1,5 +1,6 @@
-import { listCvDocuments } from "../../../utils/cv-documents";
+import { useMediator } from "@core/cqrs";
+import { listCvDocumentsQuery } from "@core/handlers/list-cv-documents";
 
 export default defineEventHandler(async () => ({
-    documents: await listCvDocuments(),
+    documents: await sendApiRequest(useMediator(), listCvDocumentsQuery()),
 }));

@@ -1,5 +1,4 @@
 export * from "./types";
-export * from "./email";
 export * from "./password";
 export * from "./user-id";
 export * from "./action";

@@ -20,7 +20,7 @@ The running Nitro server exposes `/mcp` as an MCP Streamable HTTP endpoint. `ser
 
 The route creates a fresh `McpServer` and transport per HTTP request. No session id generator is configured, so the endpoint is stateless and does not retain an MCP session map between requests. The server identifies itself as `cv-sv` version `0.1.0`.
 
-`server/utils/mcp.ts` owns tool definitions and calls `server/utils/cv-documents.ts` directly. There is no internal HTTP request, secondary MCP process, or separate MCP persistence. Tool results are pretty-printed JSON in one MCP text content item.
+`server/utils/mcp.ts` owns tool definitions and calls `server/adapters/cv/document-store.ts` directly. There is no internal HTTP request, secondary MCP process, or separate MCP persistence. Tool results are pretty-printed JSON in one MCP text content item.
 
 ## Tool Contract
 

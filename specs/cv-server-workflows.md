@@ -8,7 +8,7 @@ This spec defines the intended application contract and staged handler map for:
 
 - CV REST and SSE adapters under `server/routes/api/cvs/`;
 - the MCP adapter in `server/routes/mcp.ts` and `server/utils/mcp.ts`;
-- current CV persistence/realtime ownership in `server/utils/cv-documents.ts`;
+- current CV persistence/realtime ownership in `server/adapters/cv/document-store.ts`;
 - future CV domain types, handlers, repository ports, service ports, jobs, and artifacts under `core/` and server/infra adapters;
 - browser editor, import/extraction, validation, tailoring, template, rendering, and automation call sites.
 
@@ -16,7 +16,9 @@ Current implemented behavior remains specified in [cv-documents-realtime.md](cv-
 
 ## Current Implementation Boundary
 
-The current server supports list, lazy open/create, complete save, unique patch, revision checks, process-local update publication, and SSE. REST and MCP both reach `server/utils/cv-documents.ts` directly; CV operations do not yet have core handlers, repository ports, jobs, artifacts, ownership, or workflow orchestration.
+The server supports list, lazy open/create, complete save, unique patch, revision checks, process-local update publication, and SSE through one-purpose core handlers and a `CvDocumentPort`. REST and MCP dispatch those handlers independently.
+
+The first server import slice is also implemented. Authenticated multipart upload creates an owner-scoped durable job and source artifact; the bundled `cv-pipeline` Python adapter performs PDF text extraction or OCR, CV classification, concept extraction, and Markdown/HTML/CSS rendering. Callers poll, preview, cancel/retry, download artifacts, and explicitly commit. Commit creates a CV application composed from an immutable template version and an embedded profile snapshot; there is no standalone profile persistence API. Client-side version-control behavior remains a later client concern.
 
 ## Target Architecture
 
@@ -83,12 +85,15 @@ Server history should retain actor/source (`browser`, `mcp`, `import`, `tailor`,
 |---|---|---|---|
 | List templates | `ListCvTemplates` query | `list_cv_templates` or `cv://templates` | Includes capabilities and latest version. |
 | Get template | `GetCvTemplate` query | `get_cv_template` | Markdown skeleton, CSS, metadata, version. |
+| Clone public template locally | `CloneCvTemplate` command | — | Authenticated POST creates immutable v1 with a unique id, `builtIn: false`, and a persisted `local` tag. Editing is deferred. |
 | Create/update template | `SaveCvTemplate` command | `save_cv_template` | User/workspace templates are separate from built-ins. |
 | Apply template | `ApplyCvTemplate` command | `apply_cv_template` | Preview CSS/structure changes before commit. |
 | Rebase template version | `RebaseCvTemplate` command | `rebase_cv_template` | Preserves CV content while upgrading template style. |
 | Validate stylesheet | `ValidateCvStylesheet` query | `validate_cv_stylesheet` | Syntax, unsafe/global selectors, remote resources, print rules. |
 
 Templates should be immutable by version. Applying a template records template id/version in document metadata.
+
+The `GET /api/public/templates` catalog requires no session and returns templates whose persisted data contains the `public` tag. The full `GET /api/cv-templates` catalog and `POST /api/cv-templates/:id/clone` remain authenticated. The current template catalog is seeded from versioned JSON blobs in `server/data/cv-templates/` and copied lazily into the configured `cv` Nitro storage under `templates:*` keys. Existing persisted versions win. As a narrow, idempotent soft migration, a persisted version whose CSS still targets the old app-owned `.cv-sheet` hook or intermediate `.cv-document` contract is updated in place so each Markdown page uses `:::resume`, its first heading uses `{.cv-name}`, and its stylesheet targets those explicit indicators; all other template content remains authoritative. The former `documents:template-harvard` value is retained for rollback. Template discovery/visibility labels are persisted directly as each blob's `tags` array; current server templates carry `"public"` and no handler infers that tag.
 
 ## 4. Import And Extraction
 
@@ -216,8 +221,8 @@ Nitro adapters own HTTP bodies, streams, status codes, authentication extraction
 
 ## Current Gaps
 
-- The target workflow handlers and CV ports in this spec are not implemented yet.
-- Current REST and MCP adapters call a Nitro utility directly instead of independently dispatching core handlers.
-- Only `list_cvs`, `open_cv`, `save_cv`, and `patch_cv` exist; resources, prompts, progress, durable jobs, imports, templates, history, validation, tailoring, and server rendering remain target contracts.
-- Current document storage has no owner/workspace scope, durable revision history, audit trail, idempotency keys, or multi-instance concurrency control.
+- Lifecycle/history, validation, tailoring, resources/prompts, advanced templates, and server PDF/image artifact rendering remain target contracts.
+- Import jobs/artifacts are durable and owner-scoped, but claiming is process-local and lacks an atomic multi-instance lease.
+- Imported profile facts are versioned snapshots inside `CvApplication`; standalone profile saving is intentionally absent.
+- Current document storage has no owner/workspace scope, durable revision history, audit trail, or multi-instance concurrency control. Client-side version control is not implemented in this server slice.
 - Current MCP transport is stateless and cannot retain workflow state or send unsolicited notifications across requests.

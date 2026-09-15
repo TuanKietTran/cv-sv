@@ -4,5 +4,5 @@ import { terminateSubscriptionCommand } from "@core/handlers/terminate-subscript
 export default defineEventHandler(async (event) => {
    const id = getRouterParam(event, "id")!;
    const mediator = useMediator();
-   return mediator.send(terminateSubscriptionCommand({ subscriptionId: id }));
+   return sendApiRequest(mediator, terminateSubscriptionCommand({ subscriptionId: id }));
 });

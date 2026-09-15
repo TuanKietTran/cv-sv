@@ -21,8 +21,10 @@ The root package owns:
 pnpm install
 pnpm dev
 pnpm build
+pnpm lint                 # architecture/layout/type-ownership checks
 pnpm generate
 pnpm preview
+pnpm cv:pipeline:setup # create the ignored Python venv for imports
 ```
 
 `postinstall` runs `nuxt prepare`, generating Nuxt types/config under `.nuxt`. The root `tsconfig.json` references Nuxt-generated app/server/shared/node projects; run preparation before treating standalone TypeScript results as authoritative. `infra/tsconfig.json` is strict and owns workspace aliases for infrastructure source.
@@ -35,13 +37,15 @@ The lockfile is the dependency integrity/version authority. pnpm overrides all C
 
 SQLite local development requires the native `better-sqlite3` package to build or have a compatible binary. Deno KV support lives in the `infra` workspace. CV editing uses browser-only CodeMirror and html2canvas paths; Markdown rendering is unified/remark/rehype based.
 
+Server imports require Python plus `pdfplumber`, `pytesseract`, and Pillow; `pnpm cv:pipeline:setup` installs them into `.data/cv-pipeline-venv`. OCR additionally needs the Tesseract executable, and scanned-PDF fallback needs `pdftoppm`. The server reports missing Python packages through `/api/cv-capabilities` rather than accepting unusable jobs. `CV_PIPELINE_PYTHON`, `CV_PIPELINE_DIR`, upload size, artifact TTL, and storage location are configurable.
+
 `scripts/render-pdf.mjs` requires an installed Chromium-compatible executable. `playwright-core` does not download a browser; set `CHROMIUM_PATH` unless the default macOS Brave path exists. The script currently expects exactly two rendered CV sheets.
 
 ## Artifacts And Sensitive Data
 
 Ignored build/runtime paths include `.output`, `.nuxt`, `.nitro`, `.cache`, `dist`, `node_modules`, `.data`, logs, local SQLite database/WAL files, and local `.env*` except `.env.example`.
 
-Do not commit generated Nuxt/Nitro output, `local.db`, `.data/cv`, rendered PDFs/images, logs, or local environment files. CV documents and exports may contain personal data. Session secrets and future MCP credentials belong in local/deployment secret configuration, never source or command output.
+Do not commit generated Nuxt/Nitro output, `local.db`, `.data/cv`, rendered PDFs/images, logs, or local environment files. CV documents, exports, and browser profile storage may contain personal data. Do not copy profile `localStorage` values into fixtures, screenshots, logs, or issue reports. Session secrets and future MCP credentials belong in local/deployment secret configuration, never source or command output.
 
 ## CI And Deployment
 
@@ -56,6 +60,7 @@ For documentation-only spec changes, verify the DocumentMap has exactly one link
 For source changes, the current minimum available gates are:
 
 ```bash
+pnpm lint
 pnpm build
 pnpm dev                 # exercise user-facing/API behavior
 # connect an MCP client to http://localhost:3000/mcp
@@ -66,8 +71,8 @@ Build success covers Nuxt compilation and some TypeScript integration but does n
 
 ## Current Gaps
 
-- There are no checked-in test files and no `test`, lint, format, or dedicated type-check package script.
+- There are no checked-in test files and no `test`, format, or dedicated type-check package script. The checked-in `lint` script enforces focused architecture contracts but is not a general TypeScript/Vue/style linter.
 - CI is disabled and therefore does not enforce frozen install, build, tests, security checks, or artifact validation.
-- No executable coverage exists for domain transitions/validators, API schemas/status codes, authentication, authorization, repository parity, SQLite migration, Deno KV indexes, CV conflicts/SSE, Markdown sanitization, CodeMirror, responsive UI, or export output.
+- No checked-in executable coverage exists for domain transitions/validators, API schemas/status codes, authentication, authorization, repository parity, SQLite migration, Deno KV indexes, CV conflicts/SSE, import cancellation/recovery, Markdown sanitization, CodeMirror, responsive UI, or export output.
 - Headless PDF automation is not portable by default and has no package script or CI browser setup.
 - There is no production deployment smoke test, multi-instance persistence test, or documented backup/restore procedure for either `local.db` or CV filesystem data.

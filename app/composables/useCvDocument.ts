@@ -1,4 +1,4 @@
-import type { CvDocument, CvUpdateEvent } from "../../shared/types/cv";
+import type { CvDocument, CvUpdateEvent } from "@core/domain/cv";
 
 export type CvSaveState = "saved" | "saving" | "conflict" | "offline";
 
@@ -10,6 +10,7 @@ export async function useCvDocument(
         key: `cv-document:${id}`,
     });
 
+    const resolvedId = ref(data.value?.id ?? id);
     const markdown = ref(data.value?.markdown ?? fallback.markdown);
     const css = ref(data.value?.css ?? fallback.css);
     const revision = ref(data.value?.revision ?? 0);
@@ -87,5 +88,5 @@ export async function useCvDocument(
         events?.close();
     });
 
-    return { markdown, css, revision, saveState };
+    return { resolvedId, markdown, css, revision, saveState };
 }

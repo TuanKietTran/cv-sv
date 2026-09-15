@@ -6,8 +6,8 @@ Last updated: main@d1ae665 | 2026-09-13
 
 This spec covers:
 
-- transport contracts in `shared/types/cv.ts`;
-- server ownership in `server/utils/cv-documents.ts`;
+- document transport/domain contracts in `core/domain/cv/document.ts`;
+- server ownership in `server/adapters/cv/document-store.ts`;
 - Nitro routes under `server/routes/api/cvs/`;
 - client autosave and EventSource behavior in `app/composables/useCvDocument.ts`;
 - Nitro `cv` storage configuration in `nuxt.config.ts`.
@@ -22,7 +22,7 @@ Document ids must match `^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$`. Invalid ids return H
 
 ## Storage And Seeding
 
-`server/utils/cv-documents.ts` owns all server-side CV reads and writes. It stores records in Nitro storage namespace `cv` under `documents:<id>`. `nuxt.config.ts` configures that namespace with the filesystem driver and `CV_DATA_DIR`, defaulting to `./.data/cv`.
+`server/adapters/cv/document-store.ts` owns all server-side CV reads and writes. It stores records in Nitro storage namespace `cv` under `documents:<id>`. `nuxt.config.ts` configures that namespace with the filesystem driver and `CV_DATA_DIR`, defaulting to `./.data/cv`.
 
 Opening an absent document creates it at revision 1. `master` receives the reference Markdown and CSS; other valid ids receive generated starter Markdown and the reference CSS. Listing lazily seeds `master` when no document keys exist, then sorts summaries by descending `updatedAt`.
 
@@ -31,13 +31,24 @@ The repository's local `.data/` content is runtime user data and is ignored by G
 ## HTTP API
 
 - `GET /api/cvs`: returns `{ documents: CvDocumentSummary[] }`.
+- `POST /api/cvs`: explicitly creates one document from a random UUID, independent title, and complete Markdown/CSS, returning 201; the `/` placeholder uses this route only after its first edit.
 - `GET /api/cvs/:id`: reads or lazily creates the complete document.
 - `PUT /api/cvs/:id`: applies complete-field replacements from `UpdateCvDocumentInput` and returns the new complete document.
+- `PATCH /api/cvs/:id`: renames the independent sidebar title without changing the route id.
+- `POST /api/cvs/:id/fork`: copies content to a new UUID route id and independent title.
 - `GET /api/cvs/:id/events`: opens an SSE stream.
 
 When `expectedRevision` is present and differs from current storage, update returns HTTP 409 with the current document in error `data`. Accepted writes increment revision by one, refresh `updatedAt`, persist, then publish a process-local update containing the optional `sourceId`.
 
 Writes for the same id are chained through a process-local promise queue, including recovery after a rejected write. Different ids can write concurrently.
+
+## Route-ID Soft Migration
+
+Session route identity is independent from its sidebar title. Newly created records use UUID ids and persist `title: "Untitled CV"`; forked records use a UUID plus an explicit copy title. Renaming changes only `title`, so `/e/:id` remains stable.
+
+When document listing or an old slug lookup encounters a legacy non-hash id, including the former `master` record, the filesystem adapter deterministically derives a 32-character SHA-256 route id, copies the complete record under that id with its human title preserved, and writes `document-route-migrations:<legacy-id>` as an alias. The legacy record remains for rollback but is suppressed from listings. Old slug requests resolve through the alias, and the editor replace-navigates to `/e/<hash>`. Existing UUID/hash records always win.
+
+Document list/read also performs an idempotent source-contract migration when persisted CSS contains the legacy `.cv-sheet` or intermediate `.cv-document` selector. Each Markdown page is wrapped with the explicit `:::resume` indicator, its first heading gains `{.cv-name}`, CSS is retargeted to `.resume`/`.cv-name`, and legacy document-global/page-separation rules are removed because the preview owns those concerns. The migrated document is written under the same id with revision incremented once and a refreshed `updatedAt`; sources not matching the legacy selector are unchanged.
 
 ## SSE Behavior
 

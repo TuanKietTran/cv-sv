@@ -1,6 +1,6 @@
 # Architecture
 
-`sub` is a full-stack subscription management platform built on **Nuxt 4** (Vue frontend + Nitro server). It follows **Domain-Driven Design (DDD)** and **CQRS** patterns, with a pluggable deployment back end.
+`Ruxt` is a full-stack CV workspace and subscription platform built on **Nuxt 4** (Vue frontend + Nitro server). The CV surface provides Markdown/CSS editing, revisioned filesystem documents, SSE collaboration, authenticated PDF/image import, export, and MCP automation. The subscription/catalog/IAM surface follows **Domain-Driven Design (DDD)** and **CQRS** with pluggable persistence.
 
 ---
 
@@ -10,7 +10,7 @@
 ┌──────────────────────────────────────────────┐
 │                   app/                        │  Vue 3 SPA (Nuxt pages, composables)
 ├──────────────────────────────────────────────┤
-│                  server/                      │  Nitro HTTP server (REST API)
+│                  server/                      │  Nitro REST, SSE, MCP, sessions, CV store
 ├──────────────────────────────────────────────┤
 │                   core/                       │  Pure business logic (no framework deps)
 │   domain/   │   handlers/   │   repos/ (ports)│
@@ -19,14 +19,14 @@
 └──────────────────────────────────────────────┘
 ```
 
-Dependencies only flow **downward**. `core` has zero knowledge of `infra`, `server`, or `app`.
+`core` has zero knowledge of `infra`, `server`, or `app`. Subscription, catalog, auth, IAM, CV document, template, and import routes dispatch through core handlers and repository/service ports. Nitro owns transport, filesystem, and Python subprocess adapters; core owns the CV domains and use cases.
 
 ---
 
 ## Directory Reference
 
 ```
-sub/
+ruxt/
 ├── app/                        # Nuxt frontend
 │   ├── assets/theme/           # Global CSS / design tokens
 │   ├── components/ui/          # Reusable UI components
@@ -34,11 +34,12 @@ sub/
 │   ├── layouts/                # Nuxt layouts
 │   ├── middleware/             # Client-side route guards
 │   ├── pages/                  # File-based routing
-│   │   ├── index.vue           # Public landing / pricing page
+│   │   ├── index.vue           # Master CV editor
+│   │   ├── e/[id].vue          # Named CV editor
 │   │   ├── login.vue           # Auth page
-│   │   └── d/index.vue         # Authenticated dashboard
+│   │   ├── d/index.vue         # Subscription dashboard
+│   │   └── p.vue               # Plan catalog
 │   ├── plugins/                # Vue plugins
-│   ├── types/                  # Frontend-only TypeScript types
 │   └── app.vue                 # Root Vue component
 │
 ├── server/                     # Nitro server (API layer)
@@ -51,15 +52,21 @@ sub/
 │   │   ├── plans/              # CRUD for plans
 │   │   ├── subscriptions/      # Create, read, list + lifecycle actions
 │   │   │   └── [id]/           # cancel, pause, resume, renew, plan-change
+│   │   ├── cvs/                # List/open/save CVs and SSE event streams
+│   │   ├── cv-imports/         # Upload status, preview, retry/cancel, commit
+│   │   ├── cv-artifacts/       # Owner-scoped artifact downloads
+│   │   └── cv-templates/       # Immutable template catalog
 │   │   └── iam/
 │   │       ├── check-access.post.ts
 │   │       └── subjects/       # Get, upsert, delete IAM subjects
-│   └── utils/session.ts        # Session cookie helpers
+│   ├── routes/mcp.ts           # MCP Streamable HTTP adapter
+│   └── utils/                  # Sessions, CV store, MCP tools, HTTP error mapping
 │
 ├── core/                       # Pure domain + application logic
 │   ├── cqrs.ts                 # Mediator, Handler, Query, Command types
 │   ├── domain/
 │   │   ├── value-object.ts     # Base ValueObject<T>
+│   │   ├── cv/                 # Profile, template, application, import contracts
 │   │   ├── datetime/           # Instant, Duration, value objects
 │   │   ├── catalog/            # Plan, PlanId
 │   │   ├── subscription/       # Subscription, SubscriptionStatus, BillingCycle, Money
@@ -85,7 +92,9 @@ sub/
 │       ├── deno/               # Deno KV repo implementations (weight 10)
 │       └── onprem/             # SQLite repo implementations (weight 1, fallback)
 │
-├── nuxt.config.ts              # Path aliases (@core, @infra), Nitro config
+├── scripts/render-pdf.mjs      # Headless browser PDF automation
+├── specs/                      # Current subsystem contracts
+├── nuxt.config.ts              # Path aliases, CV storage, Nitro config
 ├── package.json
 └── pnpm-workspace.yaml
 ```
@@ -93,6 +102,14 @@ sub/
 ---
 
 ## Core Concepts
+
+### CV editor and documents
+
+`/` edits the `master` CV and `/e/:id` edits a named document. Pages bind CodeMirror to `useCvDocument()`, which debounces complete Markdown/CSS replacements and sends the current revision to `PUT /api/cvs/:id`. `server/adapters/cv/document-store.ts` validates, serializes writes per document, persists through Nitro storage, increments revisions, and publishes process-local events consumed by `/api/cvs/:id/events`.
+
+Imported facts form a versioned `CvProfile` snapshot. A `CvApplication` composes that snapshot with one immutable `CvTemplate` version. No standalone profile-saving API or browser profile store exists.
+
+The editor renders sanitized Markdown with unified/remark/rehype, applies user-controlled CSS through a style element, prints PDF through the browser, and captures each rendered sheet as PNG/JPEG with html2canvas. `/mcp` exposes CV document operations through Streamable HTTP; REST and MCP independently dispatch the same core handlers without an internal HTTP hop.
 
 ### CQRS Mediator (`core/cqrs.ts`)
 
@@ -208,6 +225,28 @@ After boot every API route can call `useMediator().send(request)` to dispatch wo
 
 ---
 
+## Data Flow — Example: Save And Broadcast A CV
+
+```
+CodeMirror edit
+        │ complete Markdown/CSS after debounce
+        ▼
+PUT /api/cvs/:id with expectedRevision and sourceId
+        │
+        ▼
+server/adapters/cv/document-store.ts
+  validates input, checks revision, serializes the document write
+        │
+        ├──► Nitro filesystem storage (`cv` namespace)
+        │
+        └──► process-local cv:update publication
+                     │
+                     ▼
+GET /api/cvs/:id/events (SSE) ──► clean peer editors
+```
+
+The writer receives the committed revision in the PUT response. A stale expected revision returns HTTP 409 with the current document; peers ignore their own `sourceId` and do not overwrite dirty local edits.
+
 ## Data Flow — Example: Create Subscription
 
 ```
@@ -239,6 +278,9 @@ API route responds 201 { subscriptionId }
 | Layer | Technology |
 |---|---|
 | Full-stack framework | Nuxt 4 (Vue 3 + Nitro) |
+| CV editor | CodeMirror, unified/remark/rehype, html2canvas |
+| CV persistence | Nitro filesystem storage and SSE |
+| Automation | MCP Streamable HTTP and browser rendering |
 | Language | TypeScript (ESM, `target: es2022`) |
 | Package manager | pnpm (workspace) |
 | On-prem database | SQLite via Drizzle ORM |

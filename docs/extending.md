@@ -85,6 +85,8 @@ export default defineEventHandler(async (event) => {
 });
 ```
 
+> **Public-route naming:** Any new API route that intentionally allows unauthenticated access must live under `server/routes/api/public/` and be exposed as `/api/public/*`. Authentication operations under `/api/auth/*` are the only naming exception. Existing legacy public routes are not precedent for new endpoints. Data tags such as `public` may select returned records, but the route adapter must still explicitly establish the unauthenticated boundary.
+
 ---
 
 ## 2. Adding a New Repository

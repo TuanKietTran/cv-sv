@@ -1,9 +1,11 @@
 import { onBeforeUnmount, onMounted, shallowRef, toValue, watch } from "vue";
 import type { MaybeRefOrGetter, ShallowRef } from "vue";
-import { Compartment, EditorState } from "@codemirror/state";
-import type { Extension } from "@codemirror/state";
+import { Compartment, EditorState, Transaction } from "@codemirror/state";
+import type { Extension, Range } from "@codemirror/state";
 import {
+    Decoration,
     EditorView,
+    ViewPlugin,
     highlightActiveLine,
     highlightActiveLineGutter,
     keymap,
@@ -29,6 +31,7 @@ export type MarkdownFormat = "bold" | "italic" | "link" | "heading" | "quote" | 
 export interface UseCodeMirrorOptions {
     initialDoc: MaybeRefOrGetter<string>;
     language?: MaybeRefOrGetter<CodeMirrorLanguage>;
+    readOnly?: MaybeRefOrGetter<boolean>;
     onChange?: (state: EditorState) => void;
 }
 
@@ -56,6 +59,34 @@ const markdownHeadingStyle = HighlightStyle.define([
     { tag: tags.heading3, fontSize: "1.2em", fontWeight: "bold" },
 ]);
 
+const markdownIndicatorDecorations = (view: EditorView) => {
+    const ranges: Range<Decoration>[] = [];
+    const attributePattern = /\{(?:[.#][\w-]+(?:\s+|(?=\}))){1,}\}/g;
+    const directivePattern = /:::(?:[\w-]+(?:\{[^{}]*\})?)?\s*$/;
+    for (let lineNumber = 1; lineNumber <= view.state.doc.lines; lineNumber++) {
+        const line = view.state.doc.line(lineNumber);
+        const directive = line.text.match(directivePattern);
+        if (directive) {
+            const from = line.from + (directive.index ?? 0);
+            ranges.push(Decoration.mark({ class: "cm-markdown-indicator" }).range(from, line.to));
+            continue;
+        }
+        for (const match of line.text.matchAll(attributePattern)) {
+            const from = line.from + (match.index ?? 0);
+            ranges.push(Decoration.mark({ class: "cm-markdown-indicator" }).range(from, from + match[0].length));
+        }
+    }
+    return Decoration.set(ranges, true);
+};
+
+const markdownIndicators = ViewPlugin.fromClass(class {
+    decorations;
+    constructor(view: EditorView) { this.decorations = markdownIndicatorDecorations(view); }
+    update(update: { docChanged: boolean; viewportChanged: boolean; view: EditorView }) {
+        if (update.docChanged || update.viewportChanged) this.decorations = markdownIndicatorDecorations(update.view);
+    }
+}, { decorations: value => value.decorations });
+
 const languageExtensions = (language: CodeMirrorLanguage): Extension =>
     language === "css"
         ? css()
@@ -74,18 +105,27 @@ export function useCodeMirror<T extends HTMLElement = HTMLDivElement>(
     const container = shallowRef<T | null>(null);
     const view = shallowRef<EditorView>();
     const languageCompartment = new Compartment();
+    const readOnlyCompartment = new Compartment();
+    const historyCompartment = new Compartment();
+    let settingDocument = false;
 
     const setDocument = (document: string) => {
         const currentView = view.value;
         if (!currentView || currentView.state.doc.toString() === document) return;
 
-        currentView.dispatch({
-            changes: {
-                from: 0,
-                to: currentView.state.doc.length,
-                insert: document,
-            },
-        });
+        settingDocument = true;
+        try {
+            currentView.dispatch({
+                changes: {
+                    from: 0,
+                    to: currentView.state.doc.length,
+                    insert: document,
+                },
+                annotations: Transaction.addToHistory.of(false),
+            });
+        } finally {
+            settingDocument = false;
+        }
     };
 
     const focus = () => view.value?.focus();
@@ -142,7 +182,7 @@ export function useCodeMirror<T extends HTMLElement = HTMLDivElement>(
                 keymap.of([...defaultKeymap, ...historyKeymap]),
                 lineNumbers(),
                 highlightActiveLineGutter(),
-                history(),
+                historyCompartment.of(history()),
                 indentOnInput(),
                 bracketMatching(),
                 syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
@@ -150,11 +190,16 @@ export function useCodeMirror<T extends HTMLElement = HTMLDivElement>(
                 languageCompartment.of(
                     languageExtensions(toValue(options.language ?? "markdown")),
                 ),
+                readOnlyCompartment.of([
+                    EditorState.readOnly.of(toValue(options.readOnly ?? false)),
+                    EditorView.editable.of(!toValue(options.readOnly ?? false)),
+                ]),
                 oneDark,
                 transparentTheme,
                 EditorView.lineWrapping,
+                markdownIndicators,
                 EditorView.updateListener.of((update) => {
-                    if (update.docChanged) options.onChange?.(update.state);
+                    if (update.docChanged && !settingDocument) options.onChange?.(update.state);
                 }),
             ],
         });
@@ -171,10 +216,26 @@ export function useCodeMirror<T extends HTMLElement = HTMLDivElement>(
     );
 
     watch(
+        () => toValue(options.readOnly ?? false),
+        (readOnly) => {
+            view.value?.dispatch({
+                effects: readOnlyCompartment.reconfigure([
+                    EditorState.readOnly.of(readOnly),
+                    EditorView.editable.of(!readOnly),
+                ]),
+            });
+        },
+    );
+
+    watch(
         () => toValue(options.language ?? "markdown"),
         (language) => {
             view.value?.dispatch({
-                effects: languageCompartment.reconfigure(languageExtensions(language)),
+                effects: [
+                    languageCompartment.reconfigure(languageExtensions(language)),
+                    // Markdown and CSS share a view, but must never share undo history.
+                    historyCompartment.reconfigure(history()),
+                ],
             });
         },
     );

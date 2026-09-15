@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import referenceCvCss from "~/data/reference-cv.css?raw";
-import { exportCvImages, type CvImageFormat } from "~/utils/exportCvImage";
+import { exportCvImages, type CvImageExportOptions, type CvImageFormat } from "~/utils/exportCvImage";
 import type { MarkdownFormat } from "~/composables/useCodeMirror";
 
 definePageMeta({ layout: false });
@@ -9,13 +9,17 @@ const route = useRoute();
 const documentId = String(route.params.id);
 type SourceTab = "markdown" | "css";
 const activeTab = ref<SourceTab>("markdown");
+const showIndicators = ref(true);
 const sourceEditor = ref<{ applyMarkdownFormat: (format: MarkdownFormat) => void } | null>(null);
-const { markdown, css, revision, saveState } = await useCvDocument(documentId, {
-    markdown: `# ${documentId}\n\nStart writing your CV.\n`,
+const { resolvedId, markdown, css, revision, saveState } = await useCvDocument(documentId, {
+    markdown: "",
     css: referenceCvCss,
 });
+if (resolvedId.value !== documentId) {
+    await navigateTo(`/e/${encodeURIComponent(resolvedId.value)}`, { replace: true });
+}
 const documentTitle = computed(
-    () => markdown.value.match(/^#\s+(.+)$/m)?.[1]?.trim() || documentId,
+    () => markdown.value.match(/^#\s+(.+)$/m)?.[1]?.replace(/\s*\{[^{}]+\}\s*$/, "").trim() || documentId,
 );
 useSeoMeta({
     title: () => documentTitle.value,
@@ -23,11 +27,12 @@ useSeoMeta({
 });
 const formatSource = (format: MarkdownFormat) => sourceEditor.value?.applyMarkdownFormat(format);
 const exportPdf = () => window.print();
-const exportImage = (format: CvImageFormat) =>
+const exportImage = (format: CvImageFormat, options: CvImageExportOptions) =>
     exportCvImages(
         format,
         documentTitle.value.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || documentId,
         css.value,
+        options,
     );
 const activeSource = computed({
     get: () => activeTab.value === "markdown" ? markdown.value : css.value,
@@ -45,7 +50,9 @@ const activeSource = computed({
         :save-state="saveState"
         :revision="revision"
         :formatting-enabled="activeTab === 'markdown'"
+        :show-indicators="showIndicators"
         @format="formatSource"
+        @toggle-indicators="showIndicators = !showIndicators"
         @export-pdf="exportPdf"
         @export-image="exportImage"
     >
@@ -64,7 +71,7 @@ const activeSource = computed({
 
         <template #editor>
             <ClientOnly>
-                <EditorCodeMirror ref="sourceEditor" v-model="activeSource" :language="activeTab" />
+                <CodeMirror ref="sourceEditor" v-model="activeSource" :language="activeTab" :show-indicators="showIndicators" />
             </ClientOnly>
         </template>
 

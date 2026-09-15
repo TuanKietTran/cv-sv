@@ -1,10 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import {
-    getCvDocument,
-    listCvDocuments,
-    updateCvDocument,
-} from "./cv-documents";
+import { useMediator } from "@core/cqrs";
+import { listCvDocumentsQuery } from "@core/handlers/list-cv-documents";
+import { getCvDocumentQuery } from "@core/handlers/get-cv-document";
+import { saveCvSourceCommand } from "@core/handlers/save-cv-source";
+import { patchCvSourceCommand } from "@core/handlers/patch-cv-source";
 
 const textResult = (value: unknown) => ({
     content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
@@ -13,15 +13,16 @@ const textResult = (value: unknown) => ({
 /** Create an isolated MCP protocol server for one stateless HTTP request. */
 export function createCvMcpServer(): McpServer {
     const server = new McpServer({ name: "cv-sv", version: "0.1.0" });
+    const mediator = useMediator();
 
     server.registerTool("list_cvs", {
         description: "List CV documents and their current revisions",
-    }, async () => textResult({ documents: await listCvDocuments() }));
+    }, async () => textResult({ documents: await mediator.send(listCvDocumentsQuery()) }));
 
     server.registerTool("open_cv", {
         description: "Read the Markdown, CSS and revision of a CV document",
         inputSchema: { id: z.string().default("master") },
-    }, async ({ id }) => textResult(await getCvDocument(id)));
+    }, async ({ id }) => textResult(await mediator.send(getCvDocumentQuery({ id }))));
 
     server.registerTool("save_cv", {
         description: "Save complete Markdown and/or CSS. Pass expectedRevision to prevent overwriting concurrent edits.",
@@ -32,12 +33,13 @@ export function createCvMcpServer(): McpServer {
             expectedRevision: z.number().int().positive().optional(),
         },
     }, async ({ id, markdown, css, expectedRevision }) => textResult(
-        await updateCvDocument(id, {
+        await mediator.send(saveCvSourceCommand({
+            id,
             markdown,
             css,
             expectedRevision,
             sourceId: "mcp",
-        }),
+        })),
     ));
 
     server.registerTool("patch_cv", {
@@ -49,19 +51,16 @@ export function createCvMcpServer(): McpServer {
             newText: z.string(),
             expectedRevision: z.number().int().positive().optional(),
         },
-    }, async ({ id, target, oldText, newText, expectedRevision }) => {
-        const document = await getCvDocument(id);
-        const occurrences = document[target].split(oldText).length - 1;
-        if (occurrences !== 1) {
-            throw new Error(`oldText must match exactly once; found ${occurrences} matches`);
-        }
-
-        return textResult(await updateCvDocument(id, {
-            [target]: document[target].replace(oldText, newText),
-            expectedRevision: expectedRevision ?? document.revision,
+    }, async ({ id, target, oldText, newText, expectedRevision }) => textResult(
+        await mediator.send(patchCvSourceCommand({
+            id,
+            target,
+            oldText,
+            newText,
+            expectedRevision,
             sourceId: "mcp",
-        }));
-    });
+        })),
+    ));
 
     return server;
 }

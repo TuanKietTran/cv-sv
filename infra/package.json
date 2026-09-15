@@ -1,5 +1,5 @@
 {
-  "name": "@sub/infra",
+  "name": "@ruxt/infra",
   "version": "0.0.1",
   "type": "module",
   "sideEffects": true,

@@ -4,7 +4,7 @@ import { createSubscriptionCommand } from "@core/handlers/create-subscription";
 export default defineEventHandler(async (event) => {
    const body = await readBody(event);
    const mediator = useMediator();
-   const data = await mediator.send(createSubscriptionCommand({
+   const data = await sendApiRequest(mediator, createSubscriptionCommand({
       userId: body.userId,
       planId: body.planId,
       billingPeriod: body.billingPeriod,

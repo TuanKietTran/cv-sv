@@ -22,7 +22,7 @@ const handleLogout = async () => {
             <div class="header-inner">
                 <NuxtLink to="/" class="logo">
                     <span class="logo-mark">◆</span>
-                    <span class="logo-text">sub</span>
+                    <span class="logo-text">ruxt</span>
                 </NuxtLink>
 
                 <nav class="nav" aria-label="Main navigation">

@@ -10,7 +10,7 @@ This spec covers:
 - Nuxt application entry and routing under `app/`;
 - Nitro plugins and routes under `server/`;
 - CQRS dispatch in `core/cqrs.ts` and registration in `infra/registry.ts`;
-- shared transport types under `shared/`;
+- CV domain and transport types under `core/domain/cv/`;
 - the `infra` workspace package and top-level source ownership.
 
 ## Runtime Shape
@@ -20,10 +20,9 @@ The application is Nuxt 4 with Vue 3 and Nitro, using TypeScript ESM and an ES20
 Current top-level ownership is:
 
 - `app/`: Vue pages, layouts, components, composables, themes, editor data, browser export utilities, and browser workers;
-- `server/`: Nitro startup, HTTP route adaptation, session helpers, CV document persistence/realtime coordination, and the MCP Streamable HTTP endpoint;
-- `core/`: framework-free value objects, subscription/catalog/IAM rules, CQRS request builders, handlers, and repository ports;
+- `server/`: Nitro startup, HTTP route adaptation, session helpers, CV persistence/realtime, the Python pipeline adapter/worker, and MCP;
+- `core/`: framework-free CV/profile/template/application domains, value objects, CQRS handlers, and repository/service ports;
 - `infra/`: scrypt, SQLite/Deno KV adapters, deployment strategy selection, and handler registration;
-- `shared/`: transport types shared by browser and Nitro code;
 - `scripts/`: standalone automation, currently headless PDF rendering.
 
 `@core` and `@infra` aliases are configured for Vite and Nitro. `nuxt.config.ts` also adds a Nitro Rollup loader for first-party `?raw` imports so Markdown and CSS seed assets can be imported by server code.
@@ -37,13 +36,11 @@ app -----------------------> core (public domain types only)
   |                            ^
   v                            |
 server -> core handlers <- infra adapters
-  |                            |
-  +---- shared <--------------+
 ```
 
-`core` does not import Nuxt, Nitro, Vue, database, or transport modules. Repository interfaces in `core/repos/` are ports implemented by `infra/deploy/*`. `server/routes/api/{auth,plans,subscriptions,iam}` adapt HTTP requests to CQRS requests. CV routes intentionally use `server/utils/cv-documents.ts` directly rather than the CQRS stack.
+`core` does not import Nuxt, Nitro, Vue, database, or transport modules. Repository interfaces in `core/repos/` are ports implemented by `infra/deploy/*` or Nitro-owned adapters. HTTP routes adapt requests to CQRS handlers. CV REST and MCP independently dispatch document handlers; import routes dispatch one-purpose import handlers and use server adapters for multipart bytes and subprocess execution.
 
-The browser CV composable and Nitro CV utility share `shared/types/cv.ts`. `server/utils/mcp.ts` invokes the same CV utility directly, so MCP and REST writes share validation, revision checks, persistence, and update publication without an internal HTTP hop.
+Browser and Nitro code import CV contracts from `core/domain/cv/`; the retired `shared/types/cv.ts` forwarding layer no longer exists. App-local copies of core CV/profile contracts are forbidden: UI-only persistence metadata may be expressed as intersections with exported core types.
 
 ## CQRS And Boot
 
@@ -53,9 +50,18 @@ Nitro boot is split between:
 
 1. `server/plugins/init-cqrs.ts`, which mounts the mediator;
 2. `server/plugins/init-infra.ts`, which calls `bootstrap()`;
-3. `infra/registry.ts`, which resolves a persistence strategy, builds repositories, constructs `ScryptHasher`, and registers all auth, plan, subscription, and IAM handlers.
+3. `server/plugins/init-cv.ts`, which assembles Nitro-owned CV adapters and delegates all CV handler registration to `infra/cv-registry.ts`;
+4. `infra/registry.ts`, which resolves a persistence strategy, builds repositories, constructs `ScryptHasher`, and registers auth, plan, subscription, and IAM handlers.
+
+Handler registration belongs to `infra`; Nitro plugins may assemble runtime-specific adapters but must not register individual core features directly.
 
 Handler modules own request input/output shapes, a handler factory, a command/query envelope factory, and a registration helper. API route files should remain thin adapters.
+
+## Shared Editor Layout Rule
+
+First-party CV-related editor surfaces must reuse `app/layouts/editor.vue`. Standard CV and template pages use its source/preview regions. Other tools such as `/profiles` supply the named `workspace` slot and replace document navigation through the `sidebar` slot, so tool-specific navigation replaces rather than duplicates the Sessions/Templates sidebar while the header, activity bar, theme, sizing, and status treatment remain consistent. Do not create a parallel full-page product shell for an editor tool without an explicit spec change.
+
+`scripts/lint-architecture.mjs` enforces the current profile-layout, public/local profile, shared core-type, and preview style-isolation boundaries through `pnpm lint`.
 
 ## Route Surfaces
 
@@ -65,19 +71,27 @@ Current browser routes include:
 - `/e/:id`: named CV editor, also without the default layout;
 - `/about`: construction/marketing page;
 - `/login`: account login and registration;
+- `/profiles`: browser-local profile editor;
+- `/t/:id`: read-only template source and preview;
 - `/d`: subscription dashboard;
 - `/d/providers`: provider-grouped plan inventory;
 - `/p`: plan catalog and user-plan deletion.
 
-Current API route families are `/api/health`, `/api/auth/*`, `/api/cvs/*`, `/api/plans/*`, `/api/subscriptions/*`, and `/api/iam/*`. `/mcp` is a protocol endpoint handled by the MCP SDK over Streamable HTTP rather than a JSON REST route. Their data and security contracts belong to the corresponding subsystem specs.
+Current API route families are `/api/health`, `/api/auth/*`, `/api/public/*`, `/api/cvs/*`, `/api/cv-imports/*`, `/api/cv-applications/*`, `/api/cv-artifacts/*`, `/api/cv-templates/*`, `/api/cv-capabilities`, `/api/plans/*`, `/api/subscriptions/*`, and `/api/iam/*`. `/mcp` is a protocol endpoint handled by the MCP SDK over Streamable HTTP rather than a JSON REST route. Their data and security contracts belong to the corresponding subsystem specs.
+
+### Public API Route Convention
+
+From this contract onward, every newly introduced HTTP API that permits unauthenticated access **must** make that trust boundary visible in its route path under `/api/public/*` and its source file under `server/routes/api/public/`. For example, the unauthenticated template catalog is `GET /api/public/templates`; the complete authenticated catalog remains `GET /api/cv-templates`.
+
+`/api/auth/*` is the sole naming exception because login, registration, logout, and session inspection inherently mix anonymous and authenticated authentication operations. Existing legacy public endpoints such as `/api/health`, CV document routes, and plan catalog routes are grandfathered until explicitly migrated; do not use their naming as precedent for new routes. A `public` data tag controls catalog inclusion but does not by itself bypass route authentication—the `/api/public/*` adapter remains the explicit public boundary.
 
 ## Runtime State
 
-The mediator, deployment strategy registry, SQLite connection, Deno KV connection, CV listener sets, and per-document write queues are process-local singletons. Browser auth and theme state use Nuxt `useState`; theme preference is persisted in `localStorage`. CV documents and subscription data use separate persistence systems.
+The mediator, deployment strategy registry, SQLite connection, Deno KV connection, CV listener sets, and per-document write queues are process-local singletons. Browser auth and theme state use Nuxt `useState`; theme preference is persisted in `localStorage`. Canonical imported CV profiles exist as versioned snapshots inside CV applications. The separate `/profiles` convenience editor stores lightweight profile drafts only in browser `localStorage`; it has no server repository or canonical-application status. CV documents and subscription data use separate persistence systems.
 
 ## Current Gaps
 
-- `README.md` and `docs/` still describe the repository primarily as `sub`; they do not fully map the current CV editor surface.
+- `README.md` and `docs/` still describe Ruxt primarily as a subscription platform; they do not fully map the current CV editor surface.
 - Route/domain errors outside the auth routes are not translated consistently to explicit HTTP status codes.
 - Handler registration is string-keyed and allows later duplicate registration to overwrite an earlier handler silently.
 - Runtime ordering depends on the two Nitro plugin files being initialized in the required mediator-before-infra sequence.

@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
    const id = getRouterParam(event, "id")!;
    const body = await readBody(event).catch(() => ({}));
    const mediator = useMediator();
-   return mediator.send(renewSubscriptionCommand({
+   return sendApiRequest(mediator, renewSubscriptionCommand({
       subscriptionId: id,
       renewedAt: body.renewedAt,
       billingPeriod: body.billingPeriod,

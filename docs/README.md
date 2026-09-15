@@ -1,14 +1,25 @@
-# sub — Documentation
+# Ruxt — Documentation
 
-**sub** is a full-stack subscription management platform built on [Nuxt 4](https://nuxt.com). It provides plans, subscriptions, billing lifecycle management, and attribute-based access control (ABAC) out of the box, deployable to Deno Deploy (KV store) or on-premise (SQLite).
+**Ruxt** is a Nuxt 4 CV workspace and subscription platform. Its primary product surfaces are:
+
+- a Markdown/CSS CV editor with live sanitized preview, A4 pagination, browser export, and responsive source/preview panes;
+- revisioned CV documents persisted by Nitro and synchronized to other editors through SSE;
+- authenticated PDF/image import into profile snapshots composed with immutable CV templates;
+- an MCP Streamable HTTP endpoint for listing, opening, saving, and patching CVs;
+- plan, subscription, account-session, and IAM management backed by SQLite or Deno KV.
 
 ## Contents
 
 | Document | Description |
 |---|---|
-| [Architecture](./architecture.md) | Layered architecture, module map, domain model, boot sequence |
+| [Architecture](./architecture.md) | Runtime surfaces, layers, storage ownership, CQRS, and boot sequence |
 | [Extending](./extending.md) | How to add handlers, deploy strategies, policies, and API routes |
-| [CV Server Workflows](../specs/cv-server-workflows.md) | Target CV application workflows, MCP surface, core handlers, ports, and staged implementation order |
+| [CV Editor](../specs/cv-editor.md) | Editor UI, rendering, themes, and export behavior |
+| [CV Documents](../specs/cv-documents-realtime.md) | REST, persistence, revisions, autosave, conflicts, and SSE |
+| [CV Server Workflows](../specs/cv-server-workflows.md) | Target CV workflows, MCP surface, ports, and staged implementation |
+| [MCP Automation](../specs/mcp-automation.md) | Current tools, transport, and headless rendering |
+| [Subscriptions](../specs/subscriptions-catalog.md) | Plans and subscription lifecycle |
+| [Authentication and IAM](../specs/auth-iam-security.md) | Sessions, policies, and current trust boundaries |
 
 ## Quick Start
 
@@ -17,29 +28,35 @@ pnpm install
 pnpm dev        # http://localhost:3000
 ```
 
+Editor routes are `/` for the master CV and `/e/:id` for a named CV. The MCP endpoint is `/mcp`.
+
 ## Tech Stack
 
 | Concern | Technology |
 |---|---|
 | Full-stack framework | Nuxt 4 / Nitro |
-| Frontend | Vue 3 |
+| Frontend | Vue 3, CodeMirror |
+| CV rendering | unified/remark/rehype, html2canvas, browser print |
+| CV persistence/realtime | Nitro filesystem storage, optimistic revisions, SSE |
+| CV imports | Nitro filesystem jobs/artifacts + bundled Python pipeline |
 | Business logic | TypeScript, DDD + CQRS |
-| Auth | Session cookie (scrypt hashed passwords) |
-| Database (on-prem) | SQLite via Drizzle ORM |
-| Database (cloud) | Deno KV |
+| Auth | Session cookie with scrypt-hashed passwords |
+| On-prem database | SQLite via Drizzle ORM |
+| Cloud database | Deno KV |
+| Automation | MCP Streamable HTTP, Playwright-compatible browser |
 | Package manager | pnpm |
 
-## Project Layout (top-level)
+## Project Layout
 
 ```
-sub/
-├── app/          # Nuxt frontend (Vue pages, components, composables)
-├── core/         # Pure domain logic — no framework dependencies
-├── infra/        # Infrastructure adapters (DB, crypto, deploy strategies)
-├── server/       # Nitro server plugins and API route handlers
-├── docs/         # This documentation
-├── nuxt.config.ts
-└── package.json
+ruxt/
+├── app/          # Editor, subscription UI, composables, themes
+├── core/         # Framework-free CV/subscription/catalog/IAM domain and handlers
+├── infra/        # SQLite/Deno KV repositories, crypto, deployment strategies
+├── server/       # Nitro REST/SSE/MCP adapters, CV pipeline and persistence
+├── scripts/      # Headless rendering automation
+├── specs/        # Compact implementation-truth subsystem contracts
+└── docs/         # Architecture and extension guides
 ```
 
-See [Architecture](./architecture.md) for a full breakdown of every layer.
+The specifications are authoritative documentation for current subsystem behavior. Start with [`specs/_readme.md`](../specs/_readme.md).

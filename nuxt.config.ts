@@ -46,11 +46,25 @@ export default defineNuxtConfig({
    },
 
    nitro: {
+      experimental: {
+         tasks: true,
+      },
+      scheduledTasks: {
+         "*/15 * * * *": ["cv-pipeline-maintenance"],
+      },
+      serverAssets: [{
+         baseName: "cvPipeline",
+         dir: "./server/pipeline",
+      }],
       storage: {
          // Canonical CV documents shared by the browser API and agent adapters.
          cv: {
             driver: "fs",
             base: process.env.CV_DATA_DIR ?? "./.data/cv",
+         },
+         cvPipeline: {
+            driver: "fs",
+            base: process.env.CV_PIPELINE_DATA_DIR ?? "./.data/cv-pipeline",
          },
       },
       esbuild: {

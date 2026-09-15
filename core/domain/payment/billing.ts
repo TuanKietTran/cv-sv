@@ -1,5 +1,5 @@
 import { ValueObject } from "../value-object";
-import { Email } from "../iam/email";
+import { Email } from "../email/email";
 import { PhoneNumber } from "../phone/phone";
 import { BillingAddress } from "./billing-address";
 

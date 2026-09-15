@@ -30,3 +30,7 @@ logs
 
 # Claude Code
 .claude/
+
+# Python caches
+__pycache__/
+*.py[cod]

@@ -4,5 +4,5 @@ import { cancelPlanChangeCommand } from "@core/handlers/cancel-plan-change";
 export default defineEventHandler(async (event) => {
    const id = getRouterParam(event, "id")!;
    const mediator = useMediator();
-   return mediator.send(cancelPlanChangeCommand({ subscriptionId: id }));
+   return sendApiRequest(mediator, cancelPlanChangeCommand({ subscriptionId: id }));
 });

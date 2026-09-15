@@ -3,17 +3,23 @@ export type CvImageFormat = "png" | "jpeg";
 const safeFilename = (name: string) =>
     name.trim().replace(/[^\p{L}\p{N}._-]+/gu, "-").replace(/^-+|-+$/g, "") || "cv";
 
-const canvasToBlob = (canvas: HTMLCanvasElement, format: CvImageFormat) =>
+export interface CvImageExportOptions {
+    scale?: number;
+    quality?: number;
+}
+
+const canvasToBlob = (canvas: HTMLCanvasElement, format: CvImageFormat, quality: number) =>
     new Promise<Blob>((resolve, reject) => canvas.toBlob(
         (blob) => blob ? resolve(blob) : reject(new Error("Image encoding failed")),
         format === "png" ? "image/png" : "image/jpeg",
-        0.95,
+        quality,
     ));
 
 export async function exportCvImages(
     format: CvImageFormat,
     name = "cv",
     _css = "",
+    options: CvImageExportOptions = {},
 ): Promise<void> {
     await document.fonts?.ready;
     const sheets = [...document.querySelectorAll<HTMLElement>(".cv-sheet")];
@@ -25,12 +31,12 @@ export async function exportCvImages(
 
     for (const [index, sheet] of sheets.entries()) {
         const canvas = await html2canvas(sheet, {
-            scale: 2,
+            scale: Math.min(3, Math.max(1, options.scale ?? 2)),
             backgroundColor: "#ffffff",
             useCORS: true,
             logging: false,
         });
-        const blob = await canvasToBlob(canvas, format);
+        const blob = await canvasToBlob(canvas, format, Math.min(1, Math.max(0.5, options.quality ?? 0.95)));
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;

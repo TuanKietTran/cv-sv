@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
    const id = getRouterParam(event, "id")!;
    const body = await readBody(event);
    const mediator = useMediator();
-   return mediator.send(upsertPlanCommand({
+   return sendApiRequest(mediator, upsertPlanCommand({
       id,
       name: body.name,
       description: body.description,

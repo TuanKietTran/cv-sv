@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
    const id = getRouterParam(event, "id")!;
    const body = (await readBody(event).catch(() => undefined)) ?? {};
    const mediator = useMediator();
-   return mediator.send(cancelSubscriptionCommand({
+   return sendApiRequest(mediator, cancelSubscriptionCommand({
       subscriptionId: id,
       cancelledAt: body.cancelledAt,
    }));

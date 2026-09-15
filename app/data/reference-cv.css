@@ -1,5 +1,6 @@
-/* Reconstructed from Kiet Tran Ha Tuan_CBTW.pdf — A4, embedded Georgia. */
-.cv-sheet {
+/* Harvard-style single-column resume template — A4, Georgia.
+   .resume comes from the :::resume Markdown indicator. */
+.resume {
   box-sizing: border-box;
   width: 210mm;
   min-height: 297mm;
@@ -11,12 +12,12 @@
   line-height: 1.24;
 }
 
-.cv-sheet * { box-sizing: border-box; }
-.cv-sheet > :first-child { margin-top: 0; }
-.cv-sheet a { color: inherit; text-decoration: none; }
-.cv-sheet p { margin: 0 0 1.4mm; }
+.resume * { box-sizing: border-box; }
+.resume > :first-child { margin-top: 0; }
+.resume a { color: inherit; text-decoration: none; }
+.resume p { margin: 0 0 1.4mm; }
 
-.cv-sheet h1 {
+.cv-name {
   margin: 0 0 2.5mm;
   padding: 0 0 1.8mm;
   border-bottom: .6pt solid #171717;
@@ -24,12 +25,12 @@
   line-height: 1.1;
   text-align: center;
 }
-.cv-sheet h1 + p {
+.cv-name + p {
   margin-bottom: 5mm;
   line-height: 1.75;
   text-align: center;
 }
-.cv-sheet h2 {
+.resume h2 {
   margin: 3.5mm 0 2mm;
   border: 0;
   font-size: 11.5pt;
@@ -38,7 +39,7 @@
   text-decoration: underline;
 }
 
-.cv-sheet table {
+.resume table {
   display: table;
   width: 100%;
   margin: 0;
@@ -47,35 +48,33 @@
   table-layout: auto;
   font-size: inherit;
 }
-.cv-sheet table tr,
-.cv-sheet table tr:nth-child(2n),
-.cv-sheet table th,
-.cv-sheet table td {
+.resume table tr,
+.resume table tr:nth-child(2n),
+.resume table th,
+.resume table td {
   background: transparent;
   border: 0;
 }
-.cv-sheet table th,
-.cv-sheet table td { padding: 0; }
-.cv-sheet table th { font-weight: normal; }
-.cv-sheet table td:last-child { white-space: nowrap; text-align: right; }
-.cv-sheet table + table { margin-top: 1.5mm; }
-.cv-sheet table + p { margin-top: 0; }
+.resume table th,
+.resume table td { padding: 0; }
+.resume table th { font-weight: normal; }
+.resume table td:last-child { white-space: nowrap; text-align: right; }
+.resume table + table { margin-top: 1.5mm; }
+.resume table + p { margin-top: 0; }
 
-.cv-sheet ul {
+.resume ul {
   margin: .8mm 0 1.5mm;
   padding-left: 6mm;
 }
-.cv-sheet li { margin: 0 0 .7mm; padding-left: .7mm; }
-.cv-sheet strong { font-weight: 700; }
-.cv-sheet em { font-style: italic; }
+.resume li { margin: 0 0 .7mm; padding-left: .7mm; }
+.resume strong { font-weight: 700; }
+.resume em { font-style: italic; }
 
 /* A Markdown thematic break starts a new physical sheet. */
-.cv-sheet hr { display: none; }
+.resume hr { display: none; }
 
-@page { size: A4; margin: 0; }
 @media print {
-  html, body { margin: 0 !important; background: #fff !important; }
-  .cv-sheet {
+  .resume {
     width: 209.5mm;
     height: 296mm;
     min-height: 296mm;
@@ -84,9 +83,5 @@
     box-shadow: none !important;
     break-after: auto;
     page-break-after: auto;
-  }
-  .cv-sheet + .cv-sheet {
-    break-before: page;
-    page-break-before: always;
   }
 }

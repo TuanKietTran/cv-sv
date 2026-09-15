@@ -4,7 +4,7 @@ Last updated: main@d1ae665 | 2026-09-13
 
 This folder is the compact implementation-truth map for humans and coding agents working on `cv-sv`. Read this file first, then open only the subsystem specs relevant to the work.
 
-The repository currently contains two product surfaces in one Nuxt application: a Markdown/CSS CV editor with HTTP, SSE, export, and MCP access, and a subscription/catalog/auth/IAM application. Specs describe that current hybrid shape rather than the older `sub`-only framing in `README.md` and `docs/`.
+The repository currently contains two product surfaces in one Nuxt application: a Markdown/CSS CV editor with HTTP, SSE, export, and MCP access, and a subscription/catalog/auth/IAM application. Specs describe that current hybrid shape rather than the older subscription-only framing in `README.md` and `docs/`.
 
 The revision above is the repository base commit. This initial spec inspection also includes the uncommitted working-tree implementation present on the stated date.
 
@@ -20,6 +20,7 @@ Each subsystem spec should remain compact and useful under context pressure:
 - Use a concrete `Scope` section naming real files, routes, stores, scripts, and integration points.
 - Use domain-specific sections rather than forcing every subsystem into one template.
 - State ownership and dependency direction clearly; distinguish enforcement from UI-only behavior.
+- Name every new unauthenticated non-auth API under `/api/public/*`; `/api/auth/*` is the only naming exception.
 - Include runtime behavior for important flows, including degraded and concurrent behavior.
 - Record security, credentials, personal data, persistence, optional dependencies, and platform constraints where relevant.
 - End with `Current Gaps` only for known, source-supported gaps.
@@ -52,7 +53,7 @@ If source and specs disagree, source is ground truth. During ordinary implementa
 
 Use these triggers during explicit spec work, and use them to select reading context during ordinary work:
 
-- New Nuxt page/layout/plugin, Nitro plugin, alias, raw asset, or route family: update [architecture-runtime.md](architecture-runtime.md) and the owning subsystem spec.
+- New Nuxt page/layout/plugin, Nitro plugin, alias, raw asset, or route family: update [architecture-runtime.md](architecture-runtime.md) and the owning subsystem spec. Any new unauthenticated non-auth route must use `/api/public/*`.
 - New CV field, route, persistence key, revision rule, update source, or streaming behavior: update [cv-documents-realtime.md](cv-documents-realtime.md), [cv-server-workflows.md](cv-server-workflows.md), [cv-editor.md](cv-editor.md), and [mcp-automation.md](mcp-automation.md) when tool behavior changes.
 - New editor control, Markdown/CSS rule, pagination rule, theme, export format, or browser API dependency: update [cv-editor.md](cv-editor.md) and [testing-devops.md](testing-devops.md).
 - New MCP tool, resource, prompt, API credential/header, agent workflow, or rendering command: update [mcp-automation.md](mcp-automation.md), [cv-server-workflows.md](cv-server-workflows.md), [auth-iam-security.md](auth-iam-security.md), and the owning data spec.

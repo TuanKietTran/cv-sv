@@ -1,21 +1,21 @@
-name: Deploy
+name: Build
 
 on:
     push:
         branches: [main]
+    pull_request:
     workflow_dispatch:
 
 concurrency:
-    group: deno-deploy-production
+    group: build-${{ github.ref }}
     cancel-in-progress: true
 
 jobs:
-    deploy:
-        name: Build and deploy to Deno Deploy
+    build:
+        name: Build Deno Deploy bundle
         runs-on: ubuntu-latest
 
         permissions:
-            id-token: write
             contents: read
 
         steps:
@@ -37,10 +37,3 @@ jobs:
               run: pnpm build
               env:
                   NITRO_PRESET: deno-deploy
-
-            - name: Deploy to Deno Deploy
-              uses: denoland/deployctl@v1
-              with:
-                  project: ruxt
-                  entrypoint: server/index.ts
-                  root: .output

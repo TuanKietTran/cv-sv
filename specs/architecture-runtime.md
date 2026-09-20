@@ -1,6 +1,6 @@
 # Architecture And Runtime
 
-Last updated: main@d1ae665 | 2026-09-13
+Last updated: main@6c64d4f | 2026-09-20
 
 ## Scope
 
@@ -86,6 +86,8 @@ From this contract onward, every newly introduced HTTP API that permits unauthen
 `/api/auth/*` is the sole naming exception because login, registration, logout, and session inspection inherently mix anonymous and authenticated authentication operations. Existing legacy public endpoints such as `/api/health`, CV document routes, and plan catalog routes are grandfathered until explicitly migrated; do not use their naming as precedent for new routes. A `public` data tag controls catalog inclusion but does not by itself bypass route authentication—the `/api/public/*` adapter remains the explicit public boundary.
 
 ## Runtime State
+
+`nuxt.config.ts` is the only alias authority at runtime. `vitest.config.ts` re-declares `@core` and `@infra` for the test runner because Vitest does not read Nuxt configuration; the two must be kept in sync when an alias changes.
 
 The mediator, deployment strategy registry, SQLite connection, Deno KV connection, CV listener sets, and per-document write queues are process-local singletons. Browser auth and theme state use Nuxt `useState`; theme preference is persisted in `localStorage`. Canonical imported CV profiles exist as versioned snapshots inside CV applications. The separate `/profiles` convenience editor stores lightweight profile drafts only in browser `localStorage`; it has no server repository or canonical-application status. CV documents and subscription data use separate persistence systems.
 

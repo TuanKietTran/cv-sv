@@ -1,6 +1,6 @@
 # CV Server Workflows
 
-Last updated: main@d1ae665 | 2026-09-13
+Last updated: main@6c64d4f | 2026-09-20
 
 ## Scope
 
@@ -86,7 +86,7 @@ Server history should retain actor/source (`browser`, `mcp`, `import`, `tailor`,
 | List templates | `ListCvTemplates` query | `list_cv_templates` or `cv://templates` | Includes capabilities and latest version. |
 | Get template | `GetCvTemplate` query | `get_cv_template` | Markdown skeleton, CSS, metadata, version. |
 | Clone public template locally | `CloneCvTemplate` command | — | Authenticated POST creates immutable v1 with a unique id, `builtIn: false`, and a persisted `local` tag. Editing is deferred. |
-| Create/update template | `SaveCvTemplate` command | `save_cv_template` | User/workspace templates are separate from built-ins. |
+| Create/update template | `SaveCvTemplate` command | — | Implemented. Authenticated `POST /api/cv-templates` returns 201. Without `overrideId` it writes a new local template at version 1 with a generated `local-<uuid>` id, `builtIn: false`, and `tags: ["local"]`. With `overrideId` it writes `currentVersion + 1` of that template, leaving earlier versions readable. Names are trimmed and capped at 120 characters; `markdownSkeleton` and `css` are required strings capped at 500 000 and 100 000 characters. Built-in or `public`-tagged templates cannot be overridden. No MCP tool is exposed. |
 | Apply template | `ApplyCvTemplate` command | `apply_cv_template` | Preview CSS/structure changes before commit. |
 | Rebase template version | `RebaseCvTemplate` command | `rebase_cv_template` | Preserves CV content while upgrading template style. |
 | Validate stylesheet | `ValidateCvStylesheet` query | `validate_cv_stylesheet` | Syntax, unsafe/global selectors, remote resources, print rules. |
@@ -219,9 +219,21 @@ Nitro adapters own HTTP bodies, streams, status codes, authentication extraction
 7. **Tailoring:** job briefs, evidence-linked matching, proposal/diff, user acceptance, and application variants.
 8. **Templates and advanced transforms:** immutable versions, rebase, structured edits, and translation.
 
+## Splitting A Session Into Template And Profile
+
+`core/domain/cv/split.ts` is pure domain code with no I/O. It divides one rendered CV session into the two halves the application model already uses: a `CvProfileProps` of personal facts and a `markdownSkeleton` of reusable presentation.
+
+`extractCvProfile` tokenizes Markdown into headings, tables, list items, and paragraphs, ignoring fenced code, directive fences, and thematic breaks. Section kind is inferred from `#`/`##` heading text by an ordered pattern list, so `Skills & Interests` classifies as skills and `Technical Projects` as projects. Both current authoring shapes are supported: the Harvard two-column table layout and the pipeline `###` heading plus italic metadata line. Leadership, activities, and volunteer sections are folded into experiences. Labelled skill lines split into named groups, and a `Languages:` label whose items look like spoken-language proficiencies is routed to `languages` rather than `skills`. Extraction is heuristic and total: it never throws, and unrecognized input yields empty fields rather than an error.
+
+`toCvTemplateSkeleton` preserves structure byte-for-byte where it carries presentation — directives, page breaks, `##` section headings, table alignment rows, list markers, and heading attribute blocks such as `{.cv-name}` — while replacing personal text with placeholders drawn from the same vocabulary as `app/data/reference-cv.md`. The line count of the skeleton equals the line count of the source. It is idempotent: applying it to its own output is a no-op, which lets the editor re-derive a skeleton from an already-generalized session. Fenced code is passed through untouched.
+
+`splitCvApplication` returns both halves together. It is the intended input to `SaveCvTemplate`, which persists only the skeleton and CSS; profile facts stay in the `CvApplication` snapshot and are never written into a template.
+
 ## Current Gaps
 
-- Lifecycle/history, validation, tailoring, resources/prompts, advanced templates, and server PDF/image artifact rendering remain target contracts.
+- Lifecycle/history, validation, tailoring, resources/prompts, apply/rebase, and server PDF/image artifact rendering remain target contracts.
+- Session splitting is heuristic. Layouts other than the Harvard table and pipeline heading shapes may mis-assign sections or leave fields empty, and the skeleton placeholder vocabulary is English-only.
+- `SaveCvTemplate` authenticates the caller but does not scope templates by owner, so any authenticated user can override any `local` template.
 - Import jobs/artifacts are durable and owner-scoped, but claiming is process-local and lacks an atomic multi-instance lease.
 - Imported profile facts are versioned snapshots inside `CvApplication`; standalone profile saving is intentionally absent.
 - Current document storage has no owner/workspace scope, durable revision history, audit trail, or multi-instance concurrency control. Client-side version control is not implemented in this server slice.

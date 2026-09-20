@@ -14,6 +14,7 @@ import { registerGetCvApplication } from "@core/handlers/get-cv-application";
 import { registerListCvTemplates } from "@core/handlers/list-cv-templates";
 import { registerGetCvTemplate } from "@core/handlers/get-cv-template";
 import { registerCloneCvTemplate } from "@core/handlers/clone-cv-template";
+import { registerSaveCvTemplate } from "@core/handlers/save-cv-template";
 import type { CvDocumentPort } from "@core/repos/cv-document.repo";
 import type { CvApplicationRepository } from "@core/repos/cv-application.repo";
 import type { CvArtifactRepository, CvImportRepository } from "@core/repos/cv-import.repo";
@@ -46,4 +47,5 @@ export function registerCvHandlers(deps: CvDependencies): void {
    registerListCvTemplates(deps.templates);
    registerGetCvTemplate(deps.templates);
    registerCloneCvTemplate(deps.templates);
+   registerSaveCvTemplate(deps.templates);
 }

@@ -194,7 +194,7 @@ const addLanguage = () => draft.value.languages.push("");
 .profile-card strong, .profile-card small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-card small { color: var(--fg-subtext0, #888); font-size: 10px; }
 .profile-delete { padding: 0 3px; color: var(--fg-subtext0, #888); }
-.profile-form { max-width: 960px; width: 100%; min-height: 0; padding: 28px; overflow: auto; }
+.profile-form { box-sizing: border-box; width: 100%; max-width: 960px; height: 100%; min-height: 0; padding: 28px; overflow: auto; }
 .profile-placeholder { display: grid; min-height: 60vh; place-items: center; color: var(--fg-subtext0, #888); }
 .profile-form label { display: grid; gap: 6px; margin-bottom: 14px; color: var(--fg-subtext1, #aaa); font-size: 11px; }
 .profile-form input, .profile-form textarea, .profile-form select { min-width: 0; padding: 9px; border: 1px solid var(--border, #333); border-radius: 3px; outline: none; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; }

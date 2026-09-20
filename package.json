@@ -5,6 +5,9 @@
   "scripts": {
     "build": "nuxt build",
     "lint": "node scripts/lint-architecture.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:smoke": "SMOKE_BASE_URL=${SMOKE_BASE_URL:-http://localhost:3000} vitest run tests/smoke",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
@@ -39,5 +42,8 @@
     "vue": "^3.5.32",
     "vue-router": "^5.0.4",
     "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.1"
   }
 }

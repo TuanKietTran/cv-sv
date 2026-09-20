@@ -4,3 +4,4 @@ export * from "./import";
 export * from "./template";
 export * from "./application";
 export * from "./version";
+export * from "./split";

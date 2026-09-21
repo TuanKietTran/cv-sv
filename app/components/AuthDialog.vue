@@ -3,8 +3,23 @@ const route = useRoute();
 const { authDialog, closeAuthDialog, setAuthMode } = useAuthDialog();
 
 const dialogElement = ref<HTMLElement | null>(null);
+const clerkLoadTimedOut = ref(false);
 let previousFocus: HTMLElement | null = null;
 let previousOverflow = "";
+let clerkLoadTimeout: ReturnType<typeof setTimeout> | undefined;
+
+const clearClerkLoadTimeout = () => {
+    if (clerkLoadTimeout) clearTimeout(clerkLoadTimeout);
+    clerkLoadTimeout = undefined;
+};
+
+const startClerkLoadTimeout = () => {
+    clearClerkLoadTimeout();
+    clerkLoadTimedOut.value = false;
+    clerkLoadTimeout = setTimeout(() => {
+        clerkLoadTimedOut.value = true;
+    }, 12_000);
+};
 
 const isSignup = computed(() => authDialog.value.mode === "signup");
 const destination = computed(() => authDialog.value.redirectTo || (route.path === "/login" ? "/" : route.fullPath));
@@ -26,11 +41,14 @@ watch(() => authDialog.value.open, async (open) => {
         previousFocus = document.activeElement as HTMLElement | null;
         previousOverflow = document.body.style.overflow;
         document.body.style.overflow = "hidden";
+        startClerkLoadTimeout();
         await nextTick();
         dialogElement.value?.focus();
         return;
     }
 
+    clearClerkLoadTimeout();
+    clerkLoadTimedOut.value = false;
     document.body.style.overflow = previousOverflow;
     await nextTick();
     previousFocus?.focus();
@@ -40,6 +58,8 @@ const close = async () => {
     closeAuthDialog();
     if (route.path === "/login") await navigateTo("/");
 };
+
+const retryClerk = () => window.location.reload();
 
 const handleKeydown = (event: KeyboardEvent) => {
     if (!authDialog.value.open) return;
@@ -67,6 +87,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 onMounted(() => window.addEventListener("keydown", handleKeydown));
 onUnmounted(() => {
     window.removeEventListener("keydown", handleKeydown);
+    clearClerkLoadTimeout();
     document.body.style.overflow = previousOverflow;
 });
 </script>
@@ -118,7 +139,11 @@ onUnmounted(() => {
             </div>
 
             <ClerkLoading>
-                <div class="clerk-loading" role="status">Loading secure sign-in…</div>
+                <div v-if="clerkLoadTimedOut" class="clerk-error" role="alert">
+                    <p>Sign-in service failed to load. Please retry or contact support.</p>
+                    <button type="button" @click="retryClerk">Retry</button>
+                </div>
+                <div v-else class="clerk-loading" role="status">Loading secure sign-in…</div>
             </ClerkLoading>
             <ClerkLoaded>
                 <SignUp
@@ -187,6 +212,9 @@ onUnmounted(() => {
 .dialog-copy h1 { margin: 0 0 8px; font-size: 24px; letter-spacing: -.02em; }
 .dialog-copy p, .privacy-note { margin: 0; color: var(--fg-subtext0); font-size: 14px; line-height: 1.55; }
 .clerk-loading { padding: 28px 0; color: var(--fg-subtext0); text-align: center; }
+.clerk-error { display: grid; gap: 14px; justify-items: center; padding: 24px 0; text-align: center; }
+.clerk-error p { margin: 0; color: var(--fg-subtext0); line-height: 1.5; }
+.clerk-error button { padding: 9px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--fg-text); background: var(--bg-surface0); font-weight: 600; cursor: pointer; }
 .privacy-note { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); font-size: 12px; }
 @media (max-width: 480px) {
     .auth-backdrop { align-items: end; padding: 0; }

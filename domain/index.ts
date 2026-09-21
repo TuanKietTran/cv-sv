@@ -1,5 +1,6 @@
 export * from "./value-object";
 export * from "./cv";
+export * from "./cloud-data";
 export * from "./datetime";
 export * from "./iam";
 export * from "./subscription";

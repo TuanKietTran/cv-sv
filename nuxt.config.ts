@@ -7,6 +7,13 @@ const infraPath = fileURLToPath(new URL("./infra", import.meta.url));
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
    compatibilityDate: "2025-07-15",
+   modules: ["@clerk/nuxt"],
+   clerk: {
+      signInUrl: "/login",
+      signUpUrl: "/login?mode=signup",
+      signInFallbackRedirectUrl: "/",
+      signUpFallbackRedirectUrl: "/",
+   },
    runtimeConfig: {
       sessionSecret:
          process.env.SESSION_SECRET ??

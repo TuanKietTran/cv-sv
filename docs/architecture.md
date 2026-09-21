@@ -37,8 +37,7 @@ ruxt/
 │   │   ├── index.vue           # Master CV editor
 │   │   ├── e/[id].vue          # Named CV editor
 │   │   ├── login.vue           # Auth page
-│   │   ├── d/index.vue         # Subscription dashboard
-│   │   └── p.vue               # Plan catalog
+│   │   └── d/index.vue         # Subscription dashboard
 │   ├── plugins/                # Vue plugins
 │   └── app.vue                 # Root Vue component
 │

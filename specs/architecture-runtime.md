@@ -15,7 +15,7 @@ This spec covers:
 
 ## Runtime Shape
 
-The application is Nuxt 4 with Vue 3 and Nitro, using TypeScript ESM and an ES2022 Nitro target. Nuxt file routing owns browser pages; Nitro file routing owns HTTP endpoints. The root package includes `infra` as a pnpm workspace package.
+The application is Nuxt 4 with Vue 3 and Nitro, using TypeScript ESM and an ES2022 Nitro target. Nuxt file routing owns browser pages; Nitro file routing owns HTTP endpoints. `@clerk/nuxt` supplies browser identity components and verified server request context. The root package includes `infra` as a pnpm workspace package.
 
 Current top-level ownership is:
 
@@ -51,7 +51,7 @@ Nitro boot is split between:
 1. `server/plugins/init-cqrs.ts`, which mounts the mediator;
 2. `server/plugins/init-infra.ts`, which calls `bootstrap()`;
 3. `server/plugins/init-cv.ts`, which assembles Nitro-owned CV adapters and delegates all CV handler registration to `infra/cv-registry.ts`;
-4. `infra/registry.ts`, which resolves a persistence strategy, builds repositories, constructs `ScryptHasher`, and registers auth, plan, subscription, and IAM handlers.
+4. `infra/registry.ts`, which resolves a persistence strategy, builds repositories, constructs `ScryptHasher`, and registers auth, cloud-consent, plan, subscription, and IAM handlers.
 
 Handler registration belongs to `infra`; Nitro plugins may assemble runtime-specific adapters but must not register individual core features directly.
 
@@ -70,14 +70,16 @@ Current browser routes include:
 - `/`: the master CV editor, rendered without the default layout;
 - `/e/:id`: named CV editor, also without the default layout;
 - `/about`: construction/marketing page;
-- `/login`: account login and registration;
+- `/login`: deep-link/redirect bridge to the global Clerk-backed sign-in and account-creation dialog;
 - `/profiles`: browser-local profile editor;
+- `/settings/cloud-data`: authenticated, independent cloud-session/template consent controls;
 - `/t/:id`: read-only template source and preview;
 - `/d`: subscription dashboard;
 - `/d/providers`: provider-grouped plan inventory;
-- `/p`: plan catalog and user-plan deletion.
 
-Current API route families are `/api/health`, `/api/auth/*`, `/api/public/*`, `/api/cvs/*`, `/api/cv-imports/*`, `/api/cv-applications/*`, `/api/cv-artifacts/*`, `/api/cv-templates/*`, `/api/cv-capabilities`, `/api/plans/*`, `/api/subscriptions/*`, and `/api/iam/*`. `/mcp` is a protocol endpoint handled by the MCP SDK over Streamable HTTP rather than a JSON REST route. Their data and security contracts belong to the corresponding subsystem specs.
+The unrelated legacy `/p` browser plan-catalog route is retired; its catalog domain and API remain in place.
+
+Current API route families are `/api/health`, `/api/auth/*`, `/api/cloud-data/*`, `/api/public/*`, `/api/cvs/*`, `/api/cv-imports/*`, `/api/cv-applications/*`, `/api/cv-artifacts/*`, `/api/cv-templates/*`, `/api/cv-capabilities`, `/api/plans/*`, `/api/subscriptions/*`, and `/api/iam/*`. `/mcp` is a protocol endpoint handled by the MCP SDK over Streamable HTTP rather than a JSON REST route. Their data and security contracts belong to the corresponding subsystem specs.
 
 ### Public API Route Convention
 
@@ -89,7 +91,7 @@ From this contract onward, every newly introduced HTTP API that permits unauthen
 
 `nuxt.config.ts` is the only alias authority at runtime. `vitest.config.ts` re-declares `@core` and `@infra` for the test runner because Vitest does not read Nuxt configuration; the two must be kept in sync when an alias changes.
 
-The mediator, deployment strategy registry, SQLite connection, Deno KV connection, CV listener sets, and per-document write queues are process-local singletons. Browser auth and theme state use Nuxt `useState`; theme preference is persisted in `localStorage`. Canonical imported CV profiles exist as versioned snapshots inside CV applications. The separate `/profiles` convenience editor stores lightweight profile drafts only in browser `localStorage`; it has no server repository or canonical-application status. CV documents and subscription data use separate persistence systems.
+The mediator, deployment strategy registry, SQLite connection, Deno KV connection, CV listener sets, and per-document write queues are process-local singletons. Clerk owns broker sessions; normalized browser auth and theme state use Nuxt `useState`; theme preference is persisted in `localStorage`. Canonical imported CV profiles exist as versioned snapshots inside CV applications. The separate `/profiles` convenience editor stores lightweight profile drafts only in browser `localStorage`; it has no server repository or canonical-application status. CV documents and subscription data use separate persistence systems.
 
 ## Current Gaps
 

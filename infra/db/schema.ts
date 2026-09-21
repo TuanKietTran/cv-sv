@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const subscriptions = sqliteTable("subscriptions", {
    id: text("id").primaryKey(),
@@ -44,3 +44,21 @@ export const iamSubjects = sqliteTable("iam_subjects", {
       .notNull()
       .default(false),
 });
+
+export const cloudConsentStates = sqliteTable("cloud_consent_states", {
+   ownerId: text("owner_id").notNull(),
+   category: text("category", { enum: ["cloudSessions", "cloudTemplates"] }).notNull(),
+   granted: integer("granted", { mode: "boolean" }).notNull(),
+   policyVersion: text("policy_version").notNull(),
+   changedAt: text("changed_at").notNull(),
+}, table => [primaryKey({ columns: [table.ownerId, table.category] })]);
+
+export const cloudConsentEvents = sqliteTable("cloud_consent_events", {
+   id: text("id").primaryKey(),
+   ownerId: text("owner_id").notNull(),
+   actorUserId: text("actor_user_id").notNull(),
+   category: text("category", { enum: ["cloudSessions", "cloudTemplates"] }).notNull(),
+   granted: integer("granted", { mode: "boolean" }).notNull(),
+   policyVersion: text("policy_version").notNull(),
+   changedAt: text("changed_at").notNull(),
+}, table => [index("idx_cloud_consent_events_owner_changed").on(table.ownerId, table.changedAt)]);

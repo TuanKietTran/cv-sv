@@ -6,13 +6,13 @@ const route = useRoute();
 
 const nav = [
     { label: "Dashboard", to: "/d", exact: true },
-    { label: "Plans", to: "/p", exact: false },
 ];
 
-const { user, logout } = useAuth();
+const { user, logout } = useAppAuth();
+const { openAuthDialog } = useAuthDialog();
 const handleLogout = async () => {
     await logout();
-    await navigateTo("/login");
+    await navigateTo("/");
 };
 </script>
 
@@ -54,6 +54,7 @@ const handleLogout = async () => {
                         </option>
                     </select>
                     <template v-if="user">
+                        <NuxtLink to="/settings/cloud-data" class="btn btn-ghost btn-sm">Cloud data</NuxtLink>
                         <span class="user-email">{{ user.email }}</span>
                         <button
                             class="btn btn-ghost btn-sm"
@@ -64,9 +65,8 @@ const handleLogout = async () => {
                         </button>
                     </template>
                     <template v-else>
-                        <NuxtLink to="/login" class="btn btn-ghost btn-sm"
-                            >Login</NuxtLink
-                        >
+                        <button class="btn btn-ghost btn-sm" type="button" @click="openAuthDialog('login')">Sign in</button>
+                        <button class="btn btn-primary btn-sm" type="button" @click="openAuthDialog('signup')">Create account</button>
                     </template>
                 </div>
             </div>
@@ -202,6 +202,11 @@ const handleLogout = async () => {
     background: var(--bg-surface0);
     color: var(--fg-text);
 }
+.btn-primary {
+    color: var(--bg-crust);
+    background: var(--accent);
+}
+.btn-primary:hover { background: var(--accent-hover); }
 
 .main {
     flex: 1;

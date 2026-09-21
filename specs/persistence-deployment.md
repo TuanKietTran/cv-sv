@@ -20,7 +20,7 @@ This spec covers:
 - Deno KV: weight 10, selected when `globalThis.Deno` exists;
 - SQLite: weight 1, unconditional fallback.
 
-Each strategy builds the same `{ sub, plan, iam, user }` repository aggregate. Core handlers depend only on repository interfaces. The selected strategy is process-wide and logged at Nitro startup.
+Each strategy builds the same `{ sub, plan, iam, user, cloudConsent }` repository aggregate. Core handlers depend only on repository interfaces. The selected strategy is process-wide and logged at Nitro startup.
 
 ## SQLite
 
@@ -30,6 +30,8 @@ Drizzle schema owns serialized columns. Dates and statuses are text, booleans ar
 
 Repository saves use upsert-by-primary-key. Subscription/user/IAM lookups are direct. Plan queries support all/public/user-owned views. JSON-to-domain hydration reruns value-object validation.
 
+Cloud consent uses `cloud_consent_states`, keyed by owner/category, plus append-only `cloud_consent_events` indexed by owner/change time. A transaction updates one category projection and appends its audit event together, so session and template choices remain independent.
+
 ## Deno KV
 
 `infra/kv.ts` lazily opens one `@deno/kv` connection. Primary/index key families are:
@@ -37,9 +39,10 @@ Repository saves use upsert-by-primary-key. Subscription/user/IAM lookups are di
 - `['sub', id]` and `['sub_user', userId, id]`;
 - `['plan', id]`, `['plan_public', id]`, and `['plan_user', userId, id]`;
 - `['user', id]` and `['user_email', email]`;
-- `['iam_subject', userId]`.
+- `['iam_subject', userId]`;
+- `['cloud_consent', ownerId, category]` and `['cloud_consent_event', ownerId, changedAt, eventId]`.
 
-Subscription, plan, and user writes use atomic operations for primary/index updates. List methods walk indexes and fetch each primary record. Deletes remove known indexes.
+Subscription, plan, user, and cloud-consent writes use atomic operations for primary/index or projection/event updates. List methods walk indexes and fetch each primary record. Deletes remove known indexes.
 
 `iam-subject-repo-kv.ts` and `iam-subject-repo-sqlite.ts` are alternate, currently unregistered IAM adapter implementations. The active strategies instantiate `DenoKvIamRepo` and `SqliteIamRepo`; the alternate Deno class uses different `iam_sub`/`iam_sub_org` keys and must not be assumed to share active data.
 

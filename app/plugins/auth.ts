@@ -1,6 +1,6 @@
 export default defineNuxtPlugin(async () => {
   if (import.meta.server) {
-    const { fetchMe } = useAuth()
+    const { fetchMe } = useAppAuth()
     await fetchMe()
   }
 })

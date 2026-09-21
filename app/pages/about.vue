@@ -36,7 +36,7 @@ useSeoMeta({
       </p>
 
       <div class="actions">
-        <NuxtLink to="/login" class="btn btn-primary">
+        <NuxtLink to="/login?mode=signup" class="btn btn-primary">
           Get early access
           <span aria-hidden="true">→</span>
         </NuxtLink>

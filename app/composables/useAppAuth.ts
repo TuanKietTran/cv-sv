@@ -3,7 +3,7 @@ export interface AuthUser {
   email: string;
 }
 
-export function useAuth() {
+export function useAppAuth() {
   const user = useState<AuthUser | null>("auth:user", () => null);
 
   const fetchMe = async () => {
@@ -27,6 +27,8 @@ export function useAuth() {
   };
 
   const logout = async () => {
+    const clerk = useClerk();
+    if (import.meta.client && clerk.value) await clerk.value.signOut();
     await $fetch("/api/auth/logout", { method: "POST" });
     user.value = null;
   };

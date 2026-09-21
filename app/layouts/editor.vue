@@ -61,7 +61,8 @@ watch(
 );
 
 const { current, themes, apply } = useTheme();
-const { user, logout } = useAuth();
+const { user, logout } = useAppAuth();
+const { openAuthDialog } = useAuthDialog();
 const { data: cvIndex, refresh: reloadCvDocuments } = await useFetch<{ documents: CvDocumentSummary[] }>("/api/cvs", {
     key: "editor-document-list",
 });
@@ -383,7 +384,6 @@ const handleImportCommitted = async (documentId: string) => {
 
 const handleLogout = async () => {
     await logout();
-    await navigateTo("/login");
 };
 </script>
 
@@ -501,7 +501,7 @@ const handleLogout = async () => {
                 >
                     ◉
                 </button>
-                <NuxtLink v-else class="activity-button" to="/login" aria-label="Sign in">◉</NuxtLink>
+                <button v-else class="activity-button" type="button" aria-label="Sign in or create account" @click="openAuthDialog('login')">◉</button>
             </div>
         </nav>
 

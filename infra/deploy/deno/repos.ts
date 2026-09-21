@@ -3,6 +3,7 @@ import { DenoKvSubscriptionRepo } from "./subscription-repo-kv";
 import { DenoKvPlanRepo } from "./plan-repo-kv";
 import { DenoKvIamRepo } from "./iam-repo-kv";
 import { DenoKvUserRepo } from "./user-repo-kv";
+import { DenoKvCloudConsentRepo } from "./cloud-consent-repo-kv";
 
 createDeployStrategy({
    label: "DenoKV",
@@ -19,6 +20,7 @@ createDeployStrategy({
          plan: new DenoKvPlanRepo(),
          iam: new DenoKvIamRepo(),
          user: new DenoKvUserRepo(),
+         cloudConsent: new DenoKvCloudConsentRepo(),
       };
    },
 });

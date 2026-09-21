@@ -1,6 +1,6 @@
 # Specs DocumentMap
 
-Last updated: main@d1ae665 | 2026-09-13
+Last updated: main@ff295d9 | 2026-09-20
 
 This folder is the compact implementation-truth map for humans and coding agents working on `cv-sv`. Read this file first, then open only the subsystem specs relevant to the work.
 
@@ -45,6 +45,7 @@ If source and specs disagree, source is ground truth. During ordinary implementa
 - [mcp-automation.md](mcp-automation.md): current Streamable HTTP MCP endpoint/tools, headless PDF script, and extraction-worker status.
 - [subscriptions-catalog.md](subscriptions-catalog.md): plan and subscription domain behavior, handlers, API routes, and management UI.
 - [auth-iam-security.md](auth-iam-security.md): account sessions, password custody, route protection, ABAC policies, and trust boundaries.
+- [authenticated-cloud-data.md](authenticated-cloud-data.md): intended opt-in consent, cloud-template quota, seven-day session recovery, sync efficiency, and local-data safety.
 - [domain-foundations.md](domain-foundations.md): shared value objects, date/time, email/password, phone, and payment primitives.
 - [persistence-deployment.md](persistence-deployment.md): SQLite and Deno KV adapters, CV filesystem storage, strategy selection, and deployment configuration.
 - [testing-devops.md](testing-devops.md): package commands, build/export prerequisites, CI status, generated artifacts, and validation gaps.
@@ -60,6 +61,7 @@ Use these triggers during explicit spec work, and use them to select reading con
 - New CV command/query, repository/service port, job, artifact, import, validation, tailoring, or template contract: update [cv-server-workflows.md](cv-server-workflows.md) plus architecture, persistence, security, MCP, editor, and testing specs as applicable.
 - New non-CV command/query, repository port, aggregate, transition, or public API payload: update [architecture-runtime.md](architecture-runtime.md), [subscriptions-catalog.md](subscriptions-catalog.md), and [persistence-deployment.md](persistence-deployment.md) as applicable.
 - New session field, auth gate, policy, subject attribute, secret, or sensitive return path: update [auth-iam-security.md](auth-iam-security.md) and the owning route/domain spec.
+- New cloud-data consent, synchronized session/template behavior, retention rule, cloud quota, conflict rule, export, or cloud deletion path: update [authenticated-cloud-data.md](authenticated-cloud-data.md), [auth-iam-security.md](auth-iam-security.md), [persistence-deployment.md](persistence-deployment.md), and the owning editor/workflow spec.
 - New value object or validation/serialization contract: update [domain-foundations.md](domain-foundations.md) and any consuming subsystem.
 - New database table/column/index, KV key/index, Nitro storage driver, migration, or data directory: update [persistence-deployment.md](persistence-deployment.md) and the owning subsystem.
 - New dependency, package script, CI workflow, browser/runtime prerequisite, or verification gate: update [testing-devops.md](testing-devops.md) and the owning subsystem.

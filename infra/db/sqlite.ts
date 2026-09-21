@@ -72,5 +72,33 @@ export function getSqliteDb() {
       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (email)
    `);
 
+   _db.run(sql`
+      CREATE TABLE IF NOT EXISTS cloud_consent_states (
+         owner_id       TEXT NOT NULL,
+         category       TEXT NOT NULL CHECK (category IN ('cloudSessions', 'cloudTemplates')),
+         granted        INTEGER NOT NULL,
+         policy_version TEXT NOT NULL,
+         changed_at     TEXT NOT NULL,
+         PRIMARY KEY (owner_id, category)
+      )
+   `);
+
+   _db.run(sql`
+      CREATE TABLE IF NOT EXISTS cloud_consent_events (
+         id             TEXT PRIMARY KEY,
+         owner_id       TEXT NOT NULL,
+         actor_user_id  TEXT NOT NULL,
+         category       TEXT NOT NULL CHECK (category IN ('cloudSessions', 'cloudTemplates')),
+         granted        INTEGER NOT NULL,
+         policy_version TEXT NOT NULL,
+         changed_at     TEXT NOT NULL
+      )
+   `);
+
+   _db.run(sql`
+      CREATE INDEX IF NOT EXISTS idx_cloud_consent_events_owner_changed
+      ON cloud_consent_events (owner_id, changed_at)
+   `);
+
    return _db;
 }

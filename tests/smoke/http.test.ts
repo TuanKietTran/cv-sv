@@ -32,10 +32,8 @@ smoke("HTTP smoke", () => {
       expect((await call("/api/health")).status).toBe(200);
    });
 
-   it("reports CV pipeline capabilities without failing the request", async () => {
-      const { status, body } = await call("/api/cv-capabilities");
-      expect(status).toBe(200);
-      expect(body).toMatchObject({ renderer: "cv-pipeline", available: expect.any(Boolean) });
+   it("requires a session to inspect CV pipeline capabilities", async () => {
+      expect((await call("/api/cv-capabilities")).status).toBe(401);
    });
 
    it("lists public CV templates unauthenticated", async () => {
@@ -47,6 +45,104 @@ smoke("HTTP smoke", () => {
    it("requires a session to save a CV template", async () => {
       const { status } = await call("/api/cv-templates", json({ name: "x", markdownSkeleton: "# X", css: "" }));
       expect(status).toBe(401);
+   });
+
+   it("requires a session to read or change cloud-data consent", async () => {
+      expect((await call("/api/cloud-data/consent")).status).toBe(401);
+      expect((await call("/api/cloud-data/consent", {
+         method: "PUT",
+         headers: { "content-type": "application/json" },
+         body: JSON.stringify({ category: "cloudSessions", granted: true }),
+      })).status).toBe(401);
+   });
+
+   it("keeps cloud-data consent denied by default and stores an explicit grant", async () => {
+      const registration = await call("/api/auth/register", json({
+         email: `smoke-consent-${Date.now()}@example.com`,
+         password: "smoke-test-password",
+      }));
+      expect(registration.status).toBe(201);
+      const cookie = registration.headers.get("set-cookie")?.split(";", 1)[0];
+      expect(cookie).toBeTruthy();
+
+      const initial = await call("/api/cloud-data/consent", { headers: { cookie: cookie! } });
+      expect(initial.status).toBe(200);
+      expect(initial.body).toMatchObject({
+         cloudSessions: { granted: false },
+         cloudTemplates: { granted: false },
+      });
+
+      const changed = await call("/api/cloud-data/consent", {
+         method: "PUT",
+         headers: { "content-type": "application/json", cookie: cookie! },
+         body: JSON.stringify({ category: "cloudSessions", granted: true }),
+      });
+      expect(changed.status).toBe(200);
+      expect(changed.body).toMatchObject({
+         cloudSessions: { granted: true },
+         cloudTemplates: { granted: false },
+      });
+   });
+
+   it("completes the legacy sign-up, session, logout, and login compatibility scenario", async () => {
+      const email = `smoke-auth-${Date.now()}@example.com`;
+      const password = "smoke-test-password";
+      const registration = await call("/api/auth/register", json({ email: `  ${email.toUpperCase()}  `, password }));
+      expect(registration.status).toBe(201);
+      const signupCookie = registration.headers.get("set-cookie")?.split(";", 1)[0];
+      expect(signupCookie).toBeTruthy();
+
+      const signedUp = await call("/api/auth/me", { headers: { cookie: signupCookie! } });
+      expect(signedUp.status).toBe(200);
+      expect(signedUp.body).toMatchObject({ email });
+      expect(signedUp.body).not.toHaveProperty("passwordHash");
+
+      const logout = await call("/api/auth/logout", { method: "POST", headers: { cookie: signupCookie! } });
+      expect(logout.status).toBe(200);
+      const clearedCookie = logout.headers.get("set-cookie")?.split(";", 1)[0];
+      expect(clearedCookie).toBeTruthy();
+      expect((await call("/api/auth/me", { headers: { cookie: clearedCookie! } })).status).toBe(401);
+
+      expect((await call("/api/auth/login", json({ email, password: "incorrect" }))).status).toBe(401);
+      const login = await call("/api/auth/login", json({ email: email.toUpperCase(), password }));
+      expect(login.status).toBe(200);
+      const loginCookie = login.headers.get("set-cookie")?.split(";", 1)[0];
+      expect(loginCookie).toBeTruthy();
+      expect((await call("/api/auth/me", { headers: { cookie: loginCookie! } })).status).toBe(200);
+   });
+
+   it("keeps authenticated cloud-data ownership isolated and ignores body owner ids", async () => {
+      const stamp = `${Date.now()}-${Math.random()}`;
+      const register = async (label: string) => {
+         const response = await call("/api/auth/register", json({
+            email: `smoke-owner-${label}-${stamp}@example.com`,
+            password: "smoke-test-password",
+         }));
+         expect(response.status).toBe(201);
+         const cookie = response.headers.get("set-cookie")?.split(";", 1)[0];
+         expect(cookie).toBeTruthy();
+         return { cookie: cookie!, userId: (response.body as { userId: string }).userId };
+      };
+      const alice = await register("alice");
+      const bob = await register("bob");
+
+      const changed = await call("/api/cloud-data/consent", {
+         method: "PUT",
+         headers: { "content-type": "application/json", cookie: alice.cookie },
+         body: JSON.stringify({
+            category: "cloudTemplates",
+            granted: true,
+            userId: bob.userId,
+            ownerId: bob.userId,
+         }),
+      });
+      expect(changed.status).toBe(200);
+      expect(changed.body).toMatchObject({ cloudTemplates: { granted: true } });
+
+      const aliceView = await call("/api/cloud-data/consent", { headers: { cookie: alice.cookie } });
+      const bobView = await call("/api/cloud-data/consent", { headers: { cookie: bob.cookie } });
+      expect(aliceView.body).toMatchObject({ cloudTemplates: { granted: true } });
+      expect(bobView.body).toMatchObject({ cloudTemplates: { granted: false } });
    });
 
    it("rejects malformed registration before touching persistence", async () => {
@@ -87,4 +183,5 @@ smoke("HTTP smoke", () => {
    it("serves the unauthenticated local profile editor", async () => {
       expect((await call("/profiles")).status).toBe(200);
    });
+
 });

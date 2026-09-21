@@ -3,6 +3,8 @@ import { ScryptHasher } from "@infra/crypto/scrypt-hasher";
 import { registerRegisterUser } from "@core/handlers/register-user";
 import { registerLoginUser } from "@core/handlers/login-user";
 import { registerGetUser } from "@core/handlers/get-user";
+import { registerGetCloudDataConsent } from "@core/handlers/get-cloud-data-consent";
+import { registerSetCloudDataConsent } from "@core/handlers/set-cloud-data-consent";
 import "@infra/deploy/index";
 import { resolveStrategy } from "@infra/deploy/strategy";
 
@@ -34,7 +36,7 @@ import { registerUpsertSubject } from "@core/handlers/upsert-subject";
 import { registerDeleteSubject } from "@core/handlers/delete-subject";
 
 export function registerAll(repos: Repos): void {
-   const { sub, plan, iam, user } = repos;
+   const { sub, plan, iam, user, cloudConsent } = repos;
    const hasher = new ScryptHasher();
 
    registerCreateSubscription(sub);
@@ -61,4 +63,7 @@ export function registerAll(repos: Repos): void {
    registerRegisterUser(user, hasher);
    registerLoginUser(user, hasher);
    registerGetUser(user);
+
+   registerGetCloudDataConsent(cloudConsent);
+   registerSetCloudDataConsent(cloudConsent);
 }

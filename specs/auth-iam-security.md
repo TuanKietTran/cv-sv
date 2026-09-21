@@ -16,7 +16,11 @@ This spec covers:
 
 ## Account Authentication
 
-Registration canonicalizes and validates email, rejects an existing canonical address, generates a UUID, hashes the password, and persists id/email/hash/creation timestamp. Login lowercases and trims the supplied email and compares the password. Responses expose user id only; `/api/auth/me` returns id and email.
+Clerk is the primary browser identity broker. `@clerk/nuxt` installs request authentication middleware and the browser SDK; the Clerk application enables verified email plus managed Google, GitHub, and Microsoft sign-in. Broker secrets stay in server-only `NUXT_CLERK_SECRET_KEY`, while `NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is intentionally public.
+
+A verified Clerk id maps deterministically to the internal owner id `clerk:<Clerk user id>`. The namespace prevents collisions with legacy UUID users. This mapping does not copy, merge, or upload legacy user data, and matching email addresses do not implicitly merge owners. `/api/auth/me` resolves the email from Clerk's server API only after middleware verifies the request token.
+
+The custom account implementation remains temporarily as a compatibility path. Registration canonicalizes and validates email, rejects an existing canonical address, generates a UUID, hashes the password, and persists id/email/hash/creation timestamp. Login lowercases and trims the supplied email and compares the password. Responses expose user id only; `/api/auth/me` returns id and email.
 
 `ScryptHasher` uses Node crypto scrypt with `N=16384`, `r=8`, `p=1`, a 32-byte random salt, and a 64-byte key. Persistent hashes encode algorithm, parameters, salt, and derived key. Verification parses the stored parameters and uses `timingSafeEqual`.
 
@@ -31,9 +35,9 @@ Auth routes are:
 
 ## Browser Auth State
 
-`useAuth()` owns one Nuxt `auth:user` state value and wraps the auth routes. The server-only `app/plugins/auth.ts` calls `fetchMe()` during SSR. The global middleware redirects unauthenticated `/d*` and `/p*` paths to `/login`, except routes explicitly marked `meta.public` and any such route with `?userId=demo`. `/profiles` is explicitly public despite matching the broad `/p*` prefix.
+`useAppAuth()` owns one Nuxt `auth:user` state value and normalizes Clerk and legacy identities through `/api/auth/me`. The server-only `app/plugins/auth.ts` calls `fetchMe()` during SSR. Logout ends the Clerk session in the browser and clears any legacy cookie. The global middleware redirects unauthenticated `/d*` and `/settings*` paths to `/login`, except routes explicitly marked `meta.public`; only `/d*` retains the legacy `?userId=demo` bypass. `/profiles` is explicitly public. The unrelated legacy `/p` plan-catalog page has been retired.
 
-The login page collects a name during signup, but registration sends only email and password. Default and editor layouts display session identity and logout controls. Browser route middleware and hidden controls are navigation conveniences, not API authorization.
+`AuthDialog` embeds Clerk's sign-in/sign-up components inside the in-context dialog, exposing email and enabled social providers while retaining mode tabs, focus trapping/restoration, Escape/backdrop dismissal, responsive presentation, safe local redirects, and local-data consent copy. `/login` remains a deep-link and protected-route bridge rather than a second form. Editor sign-in preserves the current workflow; protected-route sign-in returns to the requested local route. Default and editor layouts display session identity and logout controls. `/settings/cloud-data` is authenticated and exposes independent, default-off session/template consent controls. Browser route middleware and hidden controls are navigation conveniences, not API authorization.
 
 ## IAM Model
 
@@ -59,17 +63,23 @@ Current account sessions do not protect plan, subscription, IAM, or CV API route
 
 Legacy CV document HTTP/SSE and the `/mcp` Streamable HTTP endpoint are public at the application boundary and may expose personal data. `GET /api/public/templates` is the explicitly public, read-only template catalog and returns only records carrying the persisted `public` tag. CV import, preview, artifact, full template catalog, capability, cancellation, retry, and commit routes require an auth session and scope records by session user id. The MCP route also has no host/origin allowlist or DNS-rebinding protection. See [cv-documents-realtime.md](cv-documents-realtime.md) and [mcp-automation.md](mcp-automation.md).
 
+`GET/PUT /api/cloud-data/consent` require a verified Clerk request or a legacy cookie session and derive the consent owner solely from the server authentication context; request bodies cannot select another owner. Clerk owners use the collision-safe `clerk:` namespace. A current-policy grant is required by future cloud writers, while missing or obsolete consent projects as denied.
+
 New unauthenticated APIs outside authentication must be visibly namespaced under `/api/public/*`; `/api/auth/*` is exempt from that route naming convention. A data tag never removes an authentication gate by itself.
 
 Imported profile snapshots contain personal data and are stored inside owner-scoped CV application/import artifacts. The standalone unauthenticated `/profiles` editor has no API: its lightweight profile records remain browser-local under `cv-sv:local-profiles:v1`, so clearing site data removes them and shared-device users can read them.
 
 Passwords and hashes must never be logged or serialized through API outputs. `PlainPassword` and `HashedPassword` redact `toString()`/`toJSON()`, but direct `.value`/`.hash` getters exist for hashing and persistence.
 
+## Verification
+
+`tests/core/auth-workflows.test.ts` covers canonical sign-up, duplicate accounts, successful and failed login, password non-exposure, and safe local redirects. `tests/core/auth-principal.test.ts` covers Clerk namespacing, legacy migration sessions, and anonymous rejection. The opt-in browser suite in `tests/smoke/auth-ui.test.ts` exercises protected-route entry, sign-in/sign-up mode switching, enabled social-provider presentation, dialog dismissal, authenticated settings access, and persisted consent.
+
 ## Current Gaps
 
 - Plan, subscription, IAM-subject, access-check, legacy CV document, SSE, and MCP routes have no server-side session or ownership enforcement; the new CV import/application routes do enforce the session owner.
 - Any caller can supply another user's ids and can mutate IAM subjects; the ABAC evaluator is not wired into protected resources.
 - Registration constructs `PlainPassword` directly and therefore bypasses the available `PasswordValidator` strength rules.
-- No rate limiting, login throttling, CSRF policy, password reset, email verification, session rotation documentation, or security headers are present.
+- The legacy custom endpoints have no rate limiting, login throttling, password reset, email verification, or documented session rotation; Clerk supplies these identity flows only for broker-managed users.
 - The runtime has an insecure development fallback session secret; production must override the documented `SESSION_SECRET`.
-- The `?userId=demo` browser bypass and prefix checks are UI-only and broader than exact `/d` and `/p` route matching.
+- The `/d*` `?userId=demo` browser bypass and prefix checks are UI-only and broader than exact route matching.

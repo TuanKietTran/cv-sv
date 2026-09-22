@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import referenceCvCss from "~/data/reference-cv.css?raw";
 import { exportCvImages, type CvImageExportOptions, type CvImageFormat } from "~/utils/exportCvImage";
+import { exportCvBundle, type CvDocumentExportFormat } from "~/utils/exportCvDocument";
 import type { MarkdownFormat } from "~/composables/useCodeMirror";
 
 definePageMeta({ layout: false });
@@ -34,6 +35,8 @@ const exportImage = (format: CvImageFormat, options: CvImageExportOptions) =>
         css.value,
         options,
     );
+const exportDocument = (format: CvDocumentExportFormat) =>
+    exportCvBundle(format, documentTitle.value, markdown.value, css.value);
 const activeSource = computed({
     get: () => activeTab.value === "markdown" ? markdown.value : css.value,
     set: (value: string) => {
@@ -55,6 +58,7 @@ const activeSource = computed({
         @toggle-indicators="showIndicators = !showIndicators"
         @export-pdf="exportPdf"
         @export-image="exportImage"
+        @export-document="exportDocument"
     >
         <template #editor-tabs>
             <button

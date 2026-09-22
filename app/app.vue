@@ -1,8 +1,12 @@
+<script setup lang="ts">
+const route = useRoute();
+</script>
+
 <template>
   <div>
     <NuxtRouteAnnouncer />
     <NuxtLayout>
-      <NuxtPage />
+      <NuxtPage :page-key="route.fullPath" />
     </NuxtLayout>
     <AuthDialog />
   </div>

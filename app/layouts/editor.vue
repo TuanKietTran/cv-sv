@@ -28,6 +28,7 @@ const emit = defineEmits<{
     refreshDocuments: [];
     exportPdf: [];
     exportImage: [format: "png" | "jpeg", options: { scale: number; quality: number; root: HTMLElement | null }];
+    exportDocument: [format: "md" | "html" | "jsonresume" | "yaml" | "docx"];
     format: [format: "bold" | "italic" | "link" | "heading" | "quote" | "bullet" | "code"];
     toggleIndicators: [];
 }>();
@@ -216,18 +217,25 @@ const isFitZoom = ref(false);
 const pageCount = ref(1);
 const isExportOpen = ref(false);
 const isImportOpen = ref(false);
-const exportFormat = ref<"pdf" | "png" | "jpeg">("pdf");
+const exportFormat = ref<"pdf" | "png" | "jpeg" | "md" | "html" | "jsonresume" | "yaml" | "docx">("pdf");
+const exportFormatLabels: Record<typeof exportFormat.value, string> = {
+    pdf: "PDF", png: "PNG", jpeg: "JPEG", md: "MD + CSS", html: "HTML", jsonresume: "JSON Resume", yaml: "YAML", docx: "DOCX",
+};
 const exportScale = ref(2);
 const exportQuality = ref(95);
 const runExport = async () => {
     isExportOpen.value = false;
     await nextTick();
     if (exportFormat.value === "pdf") emit("exportPdf");
-    else emit("exportImage", exportFormat.value, {
-        scale: exportScale.value,
-        quality: exportQuality.value / 100,
-        root: previewContent.value,
-    });
+    else if (exportFormat.value === "png" || exportFormat.value === "jpeg") {
+        emit("exportImage", exportFormat.value, {
+            scale: exportScale.value,
+            quality: exportQuality.value / 100,
+            root: previewContent.value,
+        });
+    } else {
+        emit("exportDocument", exportFormat.value);
+    }
 };
 let previewObserver: MutationObserver | undefined;
 let canvasObserver: ResizeObserver | undefined;
@@ -716,9 +724,14 @@ const handleLogout = async () => {
                             <option value="pdf">PDF</option>
                             <option value="png">PNG</option>
                             <option value="jpeg">JPEG</option>
+                            <option value="md">Markdown + CSS</option>
+                            <option value="html">HTML</option>
+                            <option value="jsonresume">JSON Resume</option>
+                            <option value="yaml">YAML</option>
+                            <option value="docx">DOCX</option>
                         </select>
                     </label>
-                    <template v-if="exportFormat !== 'pdf'">
+                    <template v-if="exportFormat === 'png' || exportFormat === 'jpeg'">
                         <label>Resolution
                             <select v-model.number="exportScale">
                                 <option :value="1">1×</option><option :value="2">2×</option><option :value="3">3×</option>
@@ -729,8 +742,9 @@ const handleLogout = async () => {
                             <span>{{ exportQuality }}%</span>
                         </label>
                     </template>
-                    <p v-else class="export-dialog__hint">A4 PDF uses the browser print pipeline.</p>
-                    <footer><button type="button" @click="isExportOpen = false">Cancel</button><button class="export-dialog__submit" type="button" @click="runExport">Export {{ exportFormat.toUpperCase() }}</button></footer>
+                    <p v-else-if="exportFormat === 'pdf'" class="export-dialog__hint">A4 PDF uses the browser print pipeline.</p>
+                    <p v-else class="export-dialog__hint">Downloads a ready-to-use {{ exportFormatLabels[exportFormat] }} file.</p>
+                    <footer><button type="button" @click="isExportOpen = false">Cancel</button><button class="export-dialog__submit" type="button" @click="runExport">Export {{ exportFormatLabels[exportFormat] }}</button></footer>
                 </section>
             </div>
         </Teleport>

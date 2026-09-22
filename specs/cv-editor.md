@@ -95,8 +95,9 @@ PNG/JPEG export calls `exportCvImages()`:
 - waits for `document.fonts.ready` when available;
 - receives the active preview root from the editor layout and finds `.cv-sheet` pages only inside it, preventing another document/template preview from being exported;
 - temporarily resets the preview-only zoom to 100%, lazy-loads `html2canvas`, renders each sheet at the selected 1–3× scale on white, and restores the UI zoom even after failure;
-- encodes PNG or JPEG at quality `0.95` and triggers one browser download per sheet;
-- sanitizes the requested base filename and adds `-page-N` for multiple sheets.
+- encodes PNG or JPEG at the selected quality and scale;
+- downloads one image for a single sheet, or one ZIP containing `{base}-page-N` images for multiple sheets;
+- sanitizes the requested base filename.
 
 Image export throws if no sheets exist or encoding fails. Remote assets depend on browser canvas/CORS behavior.
 
@@ -134,5 +135,5 @@ The editor labels its main regions and icon controls, exposes the divider as a k
 
 - Split, sidebar create/refresh, help, line/column, word count, and A4 status controls are currently static or emitted without a page-level implementation.
 - Scoped document CSS can still initiate external resource loads from declarations such as `background-image: url(...)`.
-- Image export has no progress/error UI and creates separate downloads rather than one archive for multi-page CVs.
+- Image export has no progress/error UI.
 - There is no visual regression or browser export coverage.

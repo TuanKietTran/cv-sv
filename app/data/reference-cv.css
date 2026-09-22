@@ -76,10 +76,8 @@
 @media print {
   .resume {
     width: 209.5mm;
-    height: 296mm;
     min-height: 296mm;
     margin: 0 !important;
-    overflow: hidden;
     box-shadow: none !important;
     break-after: auto;
     page-break-after: auto;

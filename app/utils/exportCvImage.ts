@@ -1,6 +1,6 @@
 export type CvImageFormat = "png" | "jpeg";
 
-const safeFilename = (name: string) =>
+export const safeFilename = (name: string) =>
     name.trim().replace(/[^\p{L}\p{N}._-]+/gu, "-").replace(/^-+|-+$/g, "") || "cv";
 
 export interface CvImageExportOptions {
@@ -15,6 +15,15 @@ const canvasToBlob = (canvas: HTMLCanvasElement, format: CvImageFormat, quality:
         format === "png" ? "image/png" : "image/jpeg",
         quality,
     ));
+
+export const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1_000);
+};
 
 export async function exportCvImages(
     format: CvImageFormat,
@@ -36,21 +45,24 @@ export async function exportCvImages(
     const base = safeFilename(name);
 
     try {
-        for (const [index, sheet] of sheets.entries()) {
+        const blobs: Blob[] = [];
+        for (const sheet of sheets) {
             const canvas = await html2canvas(sheet, {
                 scale: Math.min(3, Math.max(1, options.scale ?? 2)),
                 backgroundColor: "#ffffff",
                 useCORS: true,
                 logging: false,
             });
-            const blob = await canvasToBlob(canvas, format, Math.min(1, Math.max(0.5, options.quality ?? 0.95)));
-            const url = URL.createObjectURL(blob);
-            const anchor = document.createElement("a");
-            anchor.href = url;
-            anchor.download = `${base}${sheets.length > 1 ? `-page-${index + 1}` : ""}.${extension}`;
-            anchor.click();
-            setTimeout(() => URL.revokeObjectURL(url), 1_000);
-            if (index < sheets.length - 1) await new Promise((resolve) => setTimeout(resolve, 150));
+            blobs.push(await canvasToBlob(canvas, format, Math.min(1, Math.max(0.5, options.quality ?? 0.95))));
+        }
+
+        if (blobs.length > 1) {
+            const { default: JSZip } = await import("jszip");
+            const zip = new JSZip();
+            blobs.forEach((blob, index) => zip.file(`${base}-page-${index + 1}.${extension}`, blob));
+            downloadBlob(await zip.generateAsync({ type: "blob" }), `${base}.zip`);
+        } else {
+            downloadBlob(blobs[0]!, `${base}.${extension}`);
         }
     } finally {
         if (previewPage) previewPage.style.zoom = previousZoom ?? "";

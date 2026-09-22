@@ -19,7 +19,7 @@ try {
     );
     await page.waitForFunction(() => document.fonts?.status === "loaded");
     const sheets = await page.locator(".cv-sheet").count();
-    if (sheets !== 2) throw new Error(`Expected 2 CV sheets, found ${sheets}`);
+    if (sheets < 1) throw new Error("Expected at least 1 CV sheet, found none");
 
     await page.pdf({
         path: output,

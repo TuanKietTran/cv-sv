@@ -1406,6 +1406,11 @@ button {
         background: #fff;
     }
 
+    .editor-layout {
+        position: static;
+        inset: auto;
+    }
+
     .preview-canvas {
         overflow: visible;
         padding: 0;

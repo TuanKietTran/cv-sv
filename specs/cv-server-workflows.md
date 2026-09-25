@@ -229,6 +229,36 @@ Nitro adapters own HTTP bodies, streams, status codes, authentication extraction
 
 `splitCvApplication` returns both halves together. It is the intended input to `SaveCvTemplate`, which persists only the skeleton and CSS; profile facts stay in the `CvApplication` snapshot and are never written into a template.
 
+## Switching Profiles On A Session
+
+`core/domain/cv/compose.ts` is the pure inverse of splitting. `composeCvMarkdown(skeleton, profile)` renders a `CvProfileProps` into a skeleton. The skeleton decides structure, and the profile supplies every personal value:
+
+- The `#` name line keeps its attribute block (`{.cv-name}`). The first header line containing contacts becomes `location · contacts`. The first other header line becomes the headline, keeping its emphasis.
+- Each `##` section keeps its heading text and position and is classified with the same patterns as extraction. Entry shape is inferred from the section body: Harvard table rows (first-cell emphasis and alignment row preserved), `###` headings with an emphasis metadata line, or flat lists and paragraphs, reusing the skeleton's list marker. Table cells escape `|`.
+- Only the first section of each kind receives data. Sections without matching profile data, including `other` and duplicate kinds such as `Leadership & Activities` after `Experience`, are dropped. Their trailing directives and page breaks are kept.
+- When the skeleton has no `Languages` section, languages render as a `**Languages:**` line inside skills. Profile kinds with no section are appended in the `###` layout before the final closing directive, and summary goes first. Pass `includeMissingSections: false` to disable this.
+- Skeletons with `{{field}}` placeholders (for example, `pipeline-default`) are filled by name: `fullName`/`name`, `headline`, `location`, `summary`, `contacts`, and `content` (all sections).
+
+Composition is total for a valid profile and deterministic. Composing a Harvard profile, re-deriving the skeleton with `toCvTemplateSkeleton`, and composing again gives the same Markdown, and extraction recovers the composed profile fields.
+
+| Workflow | Core handler | Transport | Notes |
+|---|---|---|---|
+| Preview a profile | `ComposeCvProfile` query | `POST /api/cvs/:id/profile/preview` | Composes into `template` (id, optional version) if given, else into `toCvTemplateSkeleton(session.markdown)`. Uses template CSS or keeps session CSS. Writes nothing. |
+| Re-snapshot an application | `UpdateCvApplicationProfile` command | — | Replaces the owner's `CvApplication` profile snapshot (ref `profileId` or the existing id, version = profile version) and re-pins the template when it changed, under an expected revision. Returns `null` when the document has no application for the owner. |
+| Switch profile | `SwitchCvProfile` saga command | `PUT /api/cvs/:id/profile`, MCP `switch_cv_profile` | Body: `profile`, optional `profileId`, `template`, `expectedRevision`, `sourceId`. Returns `{ document, application, template? }`. |
+
+Profiles stay unpersisted on the server. Callers send the profile payload, for example a browser-local profile from `/p`. The payload is normalized (missing collections become empty, unknown contact kinds become `other`), then validated. A blank `identity.fullName` is a 400 `Invalid profile`. Anonymous callers, and all MCP calls, can only compose into `public`-tagged templates. Other templates report `CV template not found`. Session documents have no owner scope yet, so the session variant is open like `PUT /api/cvs/:id`.
+
+`SwitchCvProfile` is orchestrated by `runSaga` (`core/services/saga.ts`) through the mediator, because the document store and the application store cannot share a transaction:
+
+1. `compose`: `GetCvDocument`, check `expectedRevision` (409 on mismatch), then `ComposeCvProfile` against that exact read. No side effects.
+2. `document`: `SaveCvSource` with the composed Markdown/CSS under the read revision, published to SSE with the caller's `sourceId`. The compensation writes the previous Markdown/CSS back under the new revision with `sourceId` `<sourceId>:compensate`.
+3. `application`: when the caller is authenticated, `UpdateCvApplicationProfile`. This is the final step, so it has no compensation.
+
+On failure, completed steps are compensated in reverse. A `SagaError` keeps the failed step's message, so HTTP status mapping is unchanged, and lists `compensated` steps and `compensationFailures`. If a newer edit lands between the write and its compensation, the compensation's revision check fails. The newer edit wins, and the failure is reported rather than overwriting it.
+
+The CV editor (`/e/:id`) has a `Current layout`/template picker and a `Switch profile…` picker next to the source tabs. Choosing a local profile calls `PUT /api/cvs/:id/profile` with the editor's revision and `sourceId`. The editor then adopts the returned document without re-saving it. Switching is refused while a local edit is unsaved.
+
 ## Current Gaps
 
 - Lifecycle/history, validation, tailoring, resources/prompts, apply/rebase, and server PDF/image artifact rendering remain target contracts.
@@ -236,5 +266,6 @@ Nitro adapters own HTTP bodies, streams, status codes, authentication extraction
 - `SaveCvTemplate` authenticates the caller but does not scope templates by owner, so any authenticated user can override any `local` template.
 - Import jobs/artifacts are durable and owner-scoped, but claiming is process-local and lacks an atomic multi-instance lease.
 - Imported profile facts are versioned snapshots inside `CvApplication`; standalone profile saving is intentionally absent.
+- The `SwitchCvProfile` saga is in-process with no durable saga log. A crash between the document write and the application snapshot leaves the application on the previous profile until the next switch. Composing into a session only reuses entry shapes of sections the current session still has, so a kind that was dropped for an earlier profile comes back in the default `###` layout rather than the original table layout.
 - Current document storage has no owner/workspace scope, durable revision history, audit trail, or multi-instance concurrency control. Client-side version control is not implemented in this server slice.
 - Current MCP transport is stateless and cannot retain workflow state or send unsolicited notifications across requests.

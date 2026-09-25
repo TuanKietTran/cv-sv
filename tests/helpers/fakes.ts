@@ -1,6 +1,9 @@
 import { mountVendor, useMediator } from "@core/cqrs";
 import { CvTemplate } from "@core/domain/cv/template";
 import type { CvTemplateRepository } from "@core/repos/cv-template.repo";
+import type { CvApplication } from "@core/domain/cv/application";
+import { assertExpectedRevision } from "@core/domain/cv/version";
+import type { CvApplicationRepository } from "@core/repos/cv-application.repo";
 import type {
    CvDocumentPort,
    CvDocumentRecord,
@@ -109,5 +112,32 @@ export class InMemoryCvDocumentRepo implements CvDocumentPort {
       this.store.set(id, next);
       this.events.push({ id, sourceId: input.sourceId });
       return { ...next };
+   }
+}
+
+export class InMemoryCvApplicationRepo implements CvApplicationRepository {
+   failNextUpdate?: Error;
+   private store = new Map<string, CvApplication>();
+
+   async create(application: CvApplication): Promise<void> {
+      if (this.store.has(application.id)) throw new Error("CV application already exists");
+      this.store.set(application.id, application);
+   }
+
+   async get(id: string, ownerId: string): Promise<CvApplication | null> {
+      const application = this.store.get(id);
+      return application && application.ownerId === ownerId ? application : null;
+   }
+
+   async update(application: CvApplication, expectedRevision: number): Promise<void> {
+      if (this.failNextUpdate) {
+         const error = this.failNextUpdate;
+         this.failNextUpdate = undefined;
+         throw error;
+      }
+      const current = this.store.get(application.id);
+      if (!current || current.ownerId !== application.ownerId) throw new Error("CV application not found");
+      assertExpectedRevision(expectedRevision, current.revision);
+      this.store.set(application.id, application);
    }
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import referenceCvCss from "~/data/reference-cv.css?raw";
 import { exportCvImages, type CvImageExportOptions, type CvImageFormat } from "~/utils/exportCvImage";
-import type { MarkdownFormat } from "~/composables/useCodeMirror";
+import type { EditorStats, MarkdownFormat } from "~/composables/useCodeMirror";
 import type { CvDocument } from "@core/domain/cv";
 
 definePageMeta({ layout: false });
@@ -11,6 +11,7 @@ type SaveState = "saved" | "saving" | "conflict" | "offline";
 const activeTab = ref<SourceTab>("markdown");
 const showIndicators = ref(true);
 const sourceEditor = ref<{ applyMarkdownFormat: (format: MarkdownFormat) => void } | null>(null);
+const editorStats = ref<EditorStats>({ line: 1, column: 1, words: 0 });
 const document = ref("# Untitled CV {.cv-name}\n\nStart writing your CV.\n");
 const stylesheet = ref(referenceCvCss);
 const revision = ref(0);
@@ -108,6 +109,9 @@ onBeforeUnmount(() => {
         :revision="revision"
         :formatting-enabled="activeTab === 'markdown'"
         :show-indicators="showIndicators"
+        :cursor-line="editorStats.line"
+        :cursor-column="editorStats.column"
+        :word-count="editorStats.words"
         @format="formatSource"
         @toggle-indicators="showIndicators = !showIndicators"
         @create-document="resetDraft"
@@ -139,6 +143,7 @@ onBeforeUnmount(() => {
                 v-model="activeSource"
                 :language="activeTab"
                 :show-indicators="showIndicators"
+                @update:stats="editorStats = $event"
             />
         </template>
 

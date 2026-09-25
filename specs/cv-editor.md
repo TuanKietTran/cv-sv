@@ -133,7 +133,7 @@ The editor labels its main regions and icon controls, exposes the divider as a k
 
 ## Current Gaps
 
-- Split, sidebar create/refresh, help, line/column, word count, and A4 status controls are currently static or emitted without a page-level implementation.
+- The A4 status indicator is static; there is no alternate page-size UI. (The former Split, create/refresh, help, line/column, and word-count gaps were closed on 2026-09-23: Split was removed, create/refresh and the document tree are layout-owned, Help routes to `/about`, and line/column plus word count come from the CodeMirror stats channel.)
 - Scoped document CSS can still initiate external resource loads from declarations such as `background-image: url(...)`.
 - Image export has no progress/error UI.
 - There is no visual regression or browser export coverage.

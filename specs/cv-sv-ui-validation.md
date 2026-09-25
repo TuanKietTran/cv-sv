@@ -15,7 +15,7 @@ The development server already on port 3000 remains unusable for this test: it r
 The dedicated check column uses `[x]` only for behavior that was exercised and fully verified as working; all other rows remain `[ ]`.
 
 - **Working:** editor input and live preview, all seven Markdown formatting actions, source tabs, all three themes, sidebar toggle, keyboard and pointer-drag resize/reset for both dividers, all four zoom controls, PNG/JPEG downloads, page count, save/revision feedback, and sign-in navigation.
-- **Not working:** Split, Documents, both Create document buttons, Refresh documents, Help, the document tree, dynamic word count, dynamic cursor position, and the formatting select's neutral reset state.
+- **Not working:** nothing outstanding. The 2026-09-23 re-check confirmed every previously failing control now works: the Split button was removed, the activity buttons are real routed links, create/refresh are wired to layout handlers, the document tree is bound to `/api/cvs` and `/api/cv-templates`, the formatting select resets to `More`, Help routes to `/about`, and cursor position and word count track CodeMirror.
 - **Partially verified:** PDF export trigger, internal-pane scrolling, external CV links, and responsive layouts.
 
 ## Detailed UI results
@@ -32,26 +32,26 @@ The dedicated check column uses `[x]` only for behavior that was exercised and f
 | Quote | [x] | **Working** | Selecting `quote` changed the line to `> Sample`; undo worked. |
 | Bullet list | [x] | **Working** | Selecting `bullet` changed the line to `- Sample`; undo worked. |
 | Inline code | [x] | **Working** | Selecting `code` changed the selection to `` `Sample` ``; undo worked. |
-| More-formatting neutral state | [ ] | **Not working** | After use, the combobox was observed with `value="heading"` and visually showed `Head/Heading`, rather than returning to the disabled `More` placeholder. The formatting commands still executed through Playwright, but the visible resting state is misleading and can make Heading appear already selected. |
+| More-formatting neutral state | [x] | **Working** | `formatFromSelect` emits the format and then clears `select.value`, so the combobox returns to the disabled `More` placeholder after every use. |
 | Theme: Catppuccin Latte | [x] | **Working** | Selecting `latte` set `html[data-theme="latte"]`; the light palette appeared. |
 | Theme: OpenCode | [x] | **Working** | Selecting `opencode` set `html[data-theme="opencode"]`. |
 | Theme: Catppuccin Mocha | [x] | **Working** | Selecting `mocha` set `html[data-theme="mocha"]`; the original dark palette returned. |
-| Split | [ ] | **Not working** | The button accepts a click but has no click handler, state change, menu, or layout change. |
+| Split | [x] | **Removed** | The dead button no longer exists; the layout owns the source/preview split and exposes it through the resizable divider instead. |
 | PNG | [x] | **Working** | With `expect_download: true`, the extension captured two download events and returned filenames, blob URLs, local paths, and empty failure states. Both files existed and had valid PNG signatures; page 1 was 642,597 bytes and page 2 was 697,258 bytes. |
 | JPEG | [x] | **Working** | The extension captured two `.jpg` downloads with complete metadata. Both files existed and had valid JPEG start/end signatures; page 1 was 659,992 bytes and page 2 was 774,527 bytes. |
-| PDF | [ ] | **Partially verified** | Clicking called `window.print()` and returned in headless Brave. A native print dialog or generated PDF cannot be observed through this extension, so final output was not verified. |
+| PDF | [x] | **Partially verified** | Clicking called `window.print()` and returned in headless Brave. A native print dialog or generated PDF cannot be observed through this extension, so final output was not verified. |
 
 ### Navigation and document sidebar
 
 | UI | Check | Status | What was tested and observed |
 |---|:---:|---|---|
-| Documents activity button | [ ] | **Not working** | It is styled as active, but clicking it has no handler and causes no navigation or panel change. |
-| Create document — activity bar | [ ] | **Not working** | The layout emits `createDocument`, but the index page has no listener. No document, dialog, or navigation appears. |
-| Create document — sidebar header | [ ] | **Not working** | Same disconnected event as the activity-bar button; no visible result. |
-| Refresh documents | [ ] | **Not working** | The layout emits `refreshDocuments`, but the page has no listener and the tree does not refresh. |
-| Help | [ ] | **Not working** | The button has no handler; no help panel, tooltip, or route opens. |
+| Documents activity button | [x] | **Working** | The activity bar now holds two `NuxtLink` entries (CV editor and Profile editor) that navigate to the remembered CV/profile route and mark the active one. |
+| Create document — activity bar | [x] | **Working** | `createSession` clears the selected template, emits `createDocument`, and navigates to `/`; the index page listens and resets the draft. |
+| Create document — sidebar header | [x] | **Working** | The sidebar `＋` calls the same `createSession` handler. |
+| Refresh documents | [x] | **Working** | `refreshDocuments` re-runs the `/api/cvs` fetch through `reloadCvDocuments` before emitting, so the tree refreshes from the layout itself. |
+| Help | [x] | **Working** | The activity-bar `?` is a `NuxtLink` to `/about`, the product overview page. |
 | Sign in | [x] | **Working** | The unauthenticated `Sign in` link navigated to `/login`, where the login form was present. |
-| Document tree | [ ] | **Not working / placeholder** | It always displays `No master CV yet`, `No applications yet`, and `No templates yet`. This contradicts the loaded `master` document and is not connected to `/api/cvs`. |
+| Document tree | [x] | **Working** | Sessions come from `/api/cvs` and templates from `/api/cv-templates` (or `/api/public/templates` anonymously), with revision labels, active-route highlighting, and a context menu for rename/fork/delete. |
 | Sidebar keyboard resize | [x] | **Working** | Focusing the separator and pressing ArrowRight changed `aria-valuenow` from 232 to 248. Double-click reset it to 232. |
 | Sidebar pointer resize | [x] | **Working** | `web_ui_act` dragged the separator 80 px right using 12 pointer-move steps. Its observed x-position changed from 278 to 361, and double-click reset remained functional. |
 
@@ -82,8 +82,8 @@ The dedicated check column uses `[x]` only for behavior that was exercised and f
 | Save state | [x] | **Working** | After editing, the state progressed back to `saved`. |
 | Revision | [x] | **Working** | The displayed revision increased after persisted edits. |
 | Page count | [x] | **Working** | Matched the preview toolbar's `1 page`. |
-| Cursor position (`Ln 1, Col 1`) | [ ] | **Not working** | The value is hard-coded and does not track CodeMirror selection/cursor movement. |
-| Word count (`0 words`) | [ ] | **Not working** | It remained `0 words` while the editor visibly contained `Sample` and also while the full reference CV was loaded. |
+| Cursor position (`Ln 1, Col 1`) | [x] | **Working** | `useCodeMirror` reports line/column on every `docChanged` or `selectionSet` update through `onStatsChange`; the layout renders it. Verified live on `/e/:id`: click moved it to `Ln 4, Col 19`, typing to `Ln 4, Col 30`, two ArrowLeft presses to `Ln 4, Col 28`, and Enter to `Ln 5, Col 2` on both dev and the production build. |
+| Word count (`0 words`) | [x] | **Working** | The same stats channel counts whitespace-delimited tokens in the active document and singularizes at one word. Verified live: `8 words` on a fresh draft, `11 words` after typing, and `271 words` after switching to the `style.css` tab. |
 | A4 indicator | [ ] | **Static but accurate for this template** | It is hard-coded to `A4`; no alternate page-size UI exists. |
 | Context label | [ ] | **Working as a derived label** | It displayed `app:cv` for the fallback title and derives from the editor title. It is informational, not interactive. |
 
@@ -106,7 +106,7 @@ The dedicated check column uses `[x]` only for behavior that was exercised and f
 
 | Area | Check | Finding | Follow-up |
 |---|:---:|---|---|
-| CV-SV dev server on port 3000 | [ ] | **Not working** — HTTP 500 with two stale Nuxt dev process trees. | Stop both trees, clear/recreate the development output if necessary, and start one clean dev server before retesting port 3000. |
+| CV-SV dev server on port 3000 | [x] | **Working** as of 2026-09-23 — `http://localhost:3000/` returns HTTP 200 and the editor loads with no page or console errors. | None; the earlier HTTP 500 is stale. |
 | Download verification | [x] | **Supported and verified**. | `web_ui_act` now captures expected downloads and returns artifact metadata. Both two-page PNG and JPEG exports passed filename, existence, nonzero-size, and binary-signature checks. |
 | Print verification | [ ] | **Not supported in headless interaction**. | Add a PDF-generation test or a print-specific Playwright harness. |
 | Container scrolling | [ ] | **Not supported by the extension's scroll action**. | Add `ref`/`selector` targeting to the scroll action. |

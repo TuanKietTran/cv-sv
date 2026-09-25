@@ -15,11 +15,20 @@ export default defineNuxtConfig({
       signUpFallbackRedirectUrl: "/",
    },
    runtimeConfig: {
-      sessionSecret:
-         process.env.SESSION_SECRET ??
-         "dev-only-secret-change-me-in-production!!",
+      // Nuxt applies NUXT_SESSION_SECRET at runtime. Keep this fallback local-only;
+      // deployed Deno timelines are validated by validate-deployment-env.ts.
+      sessionSecret: "dev-only-secret-change-me-in-production!!",
+      public: {
+         featureFlags: {
+            // Deployment-owned comma-separated route and host patterns. No
+            // environment policy is embedded in the application package.
+            authDisabledHosts: "",
+            authRoutes: "",
+         },
+      },
    },
    devtools: { enabled: true },
+   experimental: { serverAppConfig: false },
 
    css: ['~/assets/theme/themes.css'],
 
@@ -29,6 +38,9 @@ export default defineNuxtConfig({
    },
 
    vite: {
+      build: {
+         modulePreload: { polyfill: false },
+      },
       optimizeDeps: {
          include: [
             "@codemirror/state",

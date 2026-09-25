@@ -21,7 +21,7 @@ Current top-level ownership is:
 
 - `app/`: Vue pages, layouts, components, composables, themes, editor data, browser export utilities, and browser workers;
 - `server/`: Nitro startup, HTTP route adaptation, session helpers, CV persistence/realtime, the Python pipeline adapter/worker, and MCP;
-- `core/`: framework-free CV/profile/template/application domains, value objects, CQRS handlers, and repository/service ports;
+- `core/`: framework-free CV/profile/template/application domains, value objects, CQRS handlers, repository/service ports, and shared feature-policy exports under `core/shared/`;
 - `infra/`: scrypt, SQLite/Deno KV adapters, deployment strategy selection, and handler registration;
 - `scripts/`: standalone automation, currently headless PDF rendering.
 
@@ -38,7 +38,7 @@ app -----------------------> core (public domain types only)
 server -> core handlers <- infra adapters
 ```
 
-`core` does not import Nuxt, Nitro, Vue, database, or transport modules. Repository interfaces in `core/repos/` are ports implemented by `infra/deploy/*` or Nitro-owned adapters. HTTP routes adapt requests to CQRS handlers. CV REST and MCP independently dispatch document handlers; import routes dispatch one-purpose import handlers and use server adapters for multipart bytes and subprocess execution.
+`core` does not import Nuxt, Nitro, Vue, database, or transport modules. Cross-runtime feature policy is published only through the `@core/shared` package barrel; app and server adapters do not import its internal modules. Repository interfaces in `core/repos/` are ports implemented by `infra/deploy/*` or Nitro-owned adapters. HTTP routes adapt requests to CQRS handlers. CV REST and MCP independently dispatch document handlers; import routes dispatch one-purpose import handlers and use server adapters for multipart bytes and subprocess execution.
 
 Browser and Nitro code import CV contracts from `core/domain/cv/`; the retired `shared/types/cv.ts` forwarding layer no longer exists. App-local copies of core CV/profile contracts are forbidden: UI-only persistence metadata may be expressed as intersections with exported core types.
 
@@ -86,6 +86,10 @@ Current API route families are `/api/health`, `/api/auth/*`, `/api/cloud-data/*`
 From this contract onward, every newly introduced HTTP API that permits unauthenticated access **must** make that trust boundary visible in its route path under `/api/public/*` and its source file under `server/routes/api/public/`. For example, the unauthenticated template catalog is `GET /api/public/templates`; the complete authenticated catalog remains `GET /api/cv-templates`.
 
 `/api/auth/*` is the sole naming exception because login, registration, logout, and session inspection inherently mix anonymous and authenticated authentication operations. Existing legacy public endpoints such as `/api/health`, CV document routes, and plan catalog routes are grandfathered until explicitly migrated; do not use their naming as precedent for new routes. A `public` data tag controls catalog inclusion but does not by itself bypass route authentication—the `/api/public/*` adapter remains the explicit public boundary.
+
+### Feature Route Policy
+
+`core/shared` publishes the framework-free feature strategy and authenticated-feature rule factory; it contains no deployment host or route values. Both global browser middleware and Nitro middleware construct and evaluate the same rule from runtime configuration. `NUXT_PUBLIC_FEATURE_FLAGS_AUTH_DISABLED_HOSTS` supplies comma-separated exact or wildcard hosts, while `NUXT_PUBLIC_FEATURE_FLAGS_AUTH_ROUTES` supplies comma-separated exact or `/**` prefix routes. Deno configuration sets these to `*.deno.net` and the authenticated browser/API routes, causing those routes to return 404 and suppressing authentication, import, and authenticated-template controls while public/local editor routes remain enabled. Empty values enable the feature on every host and assign no routes. Host controls are deployment segmentation, not a substitute for authorization.
 
 ## Runtime State
 

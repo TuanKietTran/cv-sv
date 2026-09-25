@@ -60,7 +60,7 @@ CV source compatibility uses lazy, idempotent soft migrations rather than a data
 
 The package supports Nuxt dev/build/generate/preview. `NITRO_PRESET` may select a target. `.env.example` mentions `DATABASE_URL` for Neon and a node-server preset, but no current source reads `DATABASE_URL` and there is no PostgreSQL/Neon adapter.
 
-`.github/workflows/deploy.yml` deploys pushes to `main` and supports manual dispatch. The job uses Node 22, pinned pnpm 11.25.0, frozen install, a `deno-deploy` Nitro build, and deployctl OIDC permissions for the `ruxt` project. Deno KV uses the runtime-native `Deno.openKv()` API so the bundle does not include the Node-only `@deno/kv` N-API package.
+`.github/workflows/deploy.yml` validates pushes to `main`, pull requests, and manual dispatch with Node 22, pinned pnpm 11.25.0, a frozen install, and a `deno-deploy` Nitro build. The Deno Deploy native GitHub integration owns deployment and default-branch promotion. Deno KV uses the runtime-native `Deno.openKv()` API so the bundle does not include the Node-only `@deno/kv` N-API package. Runtime Clerk and session secrets are configured separately in Deno Production and Development contexts as specified in `testing-devops.md`; they do not belong in the Build context. Authenticated feature policy is entirely deployment-configured rather than embedded in the package. Set `NUXT_PUBLIC_FEATURE_FLAGS_AUTH_DISABLED_HOSTS=*.deno.net` and provide the feature-owned routes through `NUXT_PUBLIC_FEATURE_FLAGS_AUTH_ROUTES` to disable them on shared Deno hostnames while leaving custom domains enabled. Values are comma-separated; empty values enable authentication on all hosts and assign no routes.
 
 ## Current Gaps
 

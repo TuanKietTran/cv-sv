@@ -118,7 +118,7 @@ pnpm preview      # preview production build locally
 
 | Variable | Default | Description |
 |---|---|---|
-| `SESSION_SECRET` | `dev-only-secret-…` | Secret used to sign session cookies — **must be changed in production** |
+| `NUXT_SESSION_SECRET` | `dev-only-secret-…` | Runtime secret used to sign session cookies — **must be changed in every deployed context** |
 | `CV_DATA_DIR` | `./.data/cv` | Filesystem location for persisted CV documents |
 | `CV_URL` | `http://localhost:3000/` | Editor URL used by headless rendering |
 | `CHROMIUM_PATH` | platform default | Chromium-compatible executable used by the PDF script |

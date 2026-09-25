@@ -2,7 +2,7 @@
 import referenceCvCss from "~/data/reference-cv.css?raw";
 import { exportCvImages, type CvImageExportOptions, type CvImageFormat } from "~/utils/exportCvImage";
 import { exportCvBundle, type CvDocumentExportFormat } from "~/utils/exportCvDocument";
-import type { MarkdownFormat } from "~/composables/useCodeMirror";
+import type { EditorStats, MarkdownFormat } from "~/composables/useCodeMirror";
 
 definePageMeta({ layout: false });
 
@@ -12,6 +12,7 @@ type SourceTab = "markdown" | "css";
 const activeTab = ref<SourceTab>("markdown");
 const showIndicators = ref(true);
 const sourceEditor = ref<{ applyMarkdownFormat: (format: MarkdownFormat) => void } | null>(null);
+const editorStats = ref<EditorStats>({ line: 1, column: 1, words: 0 });
 const { resolvedId, markdown, css, revision, saveState } = await useCvDocument(documentId, {
     markdown: "",
     css: referenceCvCss,
@@ -54,6 +55,9 @@ const activeSource = computed({
         :revision="revision"
         :formatting-enabled="activeTab === 'markdown'"
         :show-indicators="showIndicators"
+        :cursor-line="editorStats.line"
+        :cursor-column="editorStats.column"
+        :word-count="editorStats.words"
         @format="formatSource"
         @toggle-indicators="showIndicators = !showIndicators"
         @export-pdf="exportPdf"
@@ -75,7 +79,7 @@ const activeSource = computed({
 
         <template #editor>
             <ClientOnly>
-                <CodeMirror ref="sourceEditor" v-model="activeSource" :language="activeTab" :show-indicators="showIndicators" />
+                <CodeMirror ref="sourceEditor" v-model="activeSource" :language="activeTab" :show-indicators="showIndicators" @update:stats="editorStats = $event" />
             </ClientOnly>
         </template>
 

@@ -5,7 +5,7 @@ import type { CvContactKind, CvProfileProps } from "@core/domain/cv";
 type LocalProfile = CvProfileProps & { id: string; createdAt: number; updatedAt: number };
 type LocalProfileInput = CvProfileProps;
 
-definePageMeta({ layout: false, public: true });
+definePageMeta({ layout: false, public: true, path: "/p" });
 
 const STORAGE_KEY = "cv-sv:local-profiles:v1";
 const profiles = ref<LocalProfile[]>([]);

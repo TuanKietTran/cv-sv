@@ -28,11 +28,18 @@ import { oneDark } from "@codemirror/theme-one-dark";
 export type CodeMirrorLanguage = "markdown" | "css";
 export type MarkdownFormat = "bold" | "italic" | "link" | "heading" | "quote" | "bullet" | "code";
 
+export interface EditorStats {
+    line: number;
+    column: number;
+    words: number;
+}
+
 export interface UseCodeMirrorOptions {
     initialDoc: MaybeRefOrGetter<string>;
     language?: MaybeRefOrGetter<CodeMirrorLanguage>;
     readOnly?: MaybeRefOrGetter<boolean>;
     onChange?: (state: EditorState) => void;
+    onStatsChange?: (stats: EditorStats) => void;
 }
 
 export interface UseCodeMirrorResult<T extends HTMLElement> {
@@ -104,6 +111,16 @@ export function useCodeMirror<T extends HTMLElement = HTMLDivElement>(
 ): UseCodeMirrorResult<T> {
     const container = shallowRef<T | null>(null);
     const view = shallowRef<EditorView>();
+    const reportStats = (state: EditorState) => {
+        if (!options.onStatsChange) return;
+        const head = state.selection.main.head;
+        const line = state.doc.lineAt(head);
+        options.onStatsChange({
+            line: line.number,
+            column: head - line.from + 1,
+            words: state.doc.toString().split(/\s+/).filter(Boolean).length,
+        });
+    };
     const languageCompartment = new Compartment();
     const readOnlyCompartment = new Compartment();
     const historyCompartment = new Compartment();
@@ -200,6 +217,7 @@ export function useCodeMirror<T extends HTMLElement = HTMLDivElement>(
                 markdownIndicators,
                 EditorView.updateListener.of((update) => {
                     if (update.docChanged && !settingDocument) options.onChange?.(update.state);
+                    if (update.docChanged || update.selectionSet) reportStats(update.state);
                 }),
             ],
         });
@@ -208,6 +226,7 @@ export function useCodeMirror<T extends HTMLElement = HTMLDivElement>(
             state: startState,
             parent: container.value,
         });
+        reportStats(view.value.state);
     });
 
     watch(

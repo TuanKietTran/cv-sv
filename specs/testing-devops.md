@@ -57,6 +57,7 @@ Suites are layered by what they can assert without a server:
 - `tests/core/cv-documents.test.ts`: `CvDocument` invariants, `assertExpectedRevision`/`CvRevisionConflict`, and the create/save/patch handlers against an in-memory `CvDocumentPort` that mirrors the store's revision and conflict contract.
 - `tests/core/domain-foundations.test.ts`: email, instant/duration/social-date, money, billing cycle, subscription status transitions and terminal states, subscription lifecycle, plan normalization, and card masking/Luhn rejection.
 - `tests/core/iam-policy.test.ts`: attribute validation and the deny-overrides combinator, including default-deny, owner scope, service-account read-only override, and same-org read-only access.
+- `tests/core/feature-flags.test.ts`: wildcard-host boundaries, exact/prefix route ownership, authenticated-route suppression on shared Deno hosts, public-route availability, and deployment host-list overrides.
 
 Handler suites construct handlers directly with fake repositories rather than booting Nitro, so the singleton mediator and infra bootstrap are not required. `tests/helpers/fakes.ts` owns those fakes; the mediator helper calls `mountVendor()` once because the mediator is a process singleton.
 
@@ -72,7 +73,16 @@ Do not commit generated Nuxt/Nitro output, `local.db`, `.data/cv`, rendered PDFs
 
 ## CI And Deployment
 
-The checked-in `.github/workflows/deploy.yml` runs on pushes to `main` and manual dispatch. It installs with pnpm 11.25.0 and a frozen lockfile, builds with the `deno-deploy` Nitro preset, and deploys `.output/server/index.ts` to the `ruxt` Deno Deploy project through deployctl OIDC. Concurrency cancels an older in-progress production deployment when a newer commit arrives.
+The checked-in `.github/workflows/deploy.yml` validates a Deno-targeted build on pushes to `main`, pull requests, and manual dispatch. Deno Deploy's native GitHub integration separately builds each commit and promotes the default branch to Production.
+
+Deno environment variables are runtime context configuration, not repository or GitHub secrets. Configure the same three names twice in the Deno application settings:
+
+| Deno context | Timelines | Clerk keys | Session secret |
+|---|---|---|---|
+| Production | Production/default branch | matching `pk_live_` and `sk_live_` values | unique `NUXT_SESSION_SECRET` |
+| Development | Preview URLs and Git Branch URLs | matching `pk_test_` and `sk_test_` values | a different `NUXT_SESSION_SECRET` |
+
+The names are `NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NUXT_CLERK_SECRET_KEY`, and `NUXT_SESSION_SECRET`. They are not needed in Deno's Build context. Deno configuration also sets `NUXT_PUBLIC_FEATURE_FLAGS_AUTH_DISABLED_HOSTS=*.deno.net` and `NUXT_PUBLIC_FEATURE_FLAGS_AUTH_ROUTES` to the authenticated route list shown in `.env.example`. Both are comma-separated runtime policy and have empty application defaults, so no deployment rule is hard-coded; custom application domains retain authentication. `server/plugins/validate-deployment-env.ts` uses `DENO_TIMELINE` to reject absent keys, test keys in Production, live keys in non-production timelines, or a weak/missing session secret. Clerk production must allow the production application domain; preview OAuth remains isolated in Clerk Development and must not be used for real accounts or data.
 
 Issue and PR templates request layer classification, acceptance criteria, local `pnpm dev` testing, and screenshots/logs, but they do not execute checks.
 

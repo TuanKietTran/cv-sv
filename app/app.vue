@@ -1,13 +1,13 @@
 <script setup lang="ts">
-const route = useRoute();
+const { authenticated } = useFeatureFlags();
 </script>
 
 <template>
   <div>
     <NuxtRouteAnnouncer />
     <NuxtLayout>
-      <NuxtPage :page-key="route.fullPath" />
+      <NuxtPage />
     </NuxtLayout>
-    <AuthDialog />
+    <AuthDialog v-if="authenticated" />
   </div>
 </template>

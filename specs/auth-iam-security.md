@@ -16,7 +16,7 @@ This spec covers:
 
 ## Account Authentication
 
-Clerk is the primary browser identity broker. `@clerk/nuxt` installs request authentication middleware and the browser SDK; the Clerk application enables verified email plus managed Google, GitHub, and Microsoft sign-in. Broker secrets stay in server-only `NUXT_CLERK_SECRET_KEY`, while `NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is intentionally public.
+Clerk is the primary browser identity broker. `@clerk/nuxt` installs request authentication middleware and the browser SDK; the Clerk application enables verified email plus managed Google, GitHub, and Microsoft sign-in. Broker secrets stay in server-only `NUXT_CLERK_SECRET_KEY`, while `NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is intentionally public. Deno's Production context uses a matching `pk_live_`/`sk_live_` pair; its Development context, shared by Preview and Git Branch timelines, uses a matching `pk_test_`/`sk_test_` pair. `server/plugins/validate-deployment-env.ts` rejects missing or cross-environment keys before serving a Deno timeline.
 
 A verified Clerk id maps deterministically to the internal owner id `clerk:<Clerk user id>`. The namespace prevents collisions with legacy UUID users. This mapping does not copy, merge, or upload legacy user data, and matching email addresses do not implicitly merge owners. `/api/auth/me` resolves the email from Clerk's server API only after middleware verifies the request token.
 
@@ -31,13 +31,13 @@ Auth routes are:
 - `GET /api/auth/me`: requires a session user id and an existing user, otherwise 401;
 - `POST /api/auth/logout`: clears the session.
 
-`getAuthSession()` owns an H3 `auth_session` cookie-backed session with a seven-day max age. Its password comes from private Nuxt runtime config `sessionSecret`; the fallback development password must not be used in production.
+`getAuthSession()` owns an H3 `auth_session` cookie-backed session with a seven-day max age. Its password comes from private Nuxt runtime config `sessionSecret`, overridden at runtime by `NUXT_SESSION_SECRET`; the fallback development password must not be used on any deployed timeline.
 
 ## Browser Auth State
 
-`useAppAuth()` owns one Nuxt `auth:user` state value and normalizes Clerk and legacy identities through `/api/auth/me`. The server-only `app/plugins/auth.ts` calls `fetchMe()` during SSR. Logout ends the Clerk session in the browser and clears any legacy cookie. The global middleware redirects unauthenticated `/d*` and `/settings*` paths to `/login`, except routes explicitly marked `meta.public`; only `/d*` retains the legacy `?userId=demo` bypass. `/profiles` is explicitly public. The unrelated legacy `/p` plan-catalog page has been retired.
+`useAppAuth()` owns one Nuxt `auth:user` state value and normalizes Clerk and legacy identities through `/api/auth/me`. The server-only `app/plugins/auth.ts` calls `fetchMe()` during SSR only when the authenticated feature is enabled for the request host. Logout ends the Clerk session in the browser and clears any legacy cookie. The global middleware redirects unauthenticated `/d*` and `/settings*` paths to `/login`, except routes explicitly marked `meta.public`; only `/d*` retains the legacy `?userId=demo` bypass. `/profiles` is explicitly public. The unrelated legacy `/p` plan-catalog page has been retired.
 
-`AuthDialog` embeds Clerk's sign-in/sign-up components inside the in-context dialog, exposing email and enabled social providers while retaining mode tabs, focus trapping/restoration, Escape/backdrop dismissal, responsive presentation, safe local redirects, and local-data consent copy. `/login` remains a deep-link and protected-route bridge rather than a second form. Editor sign-in preserves the current workflow; protected-route sign-in returns to the requested local route. Default and editor layouts display session identity and logout controls. `/settings/cloud-data` is authenticated and exposes independent, default-off session/template consent controls. Browser route middleware and hidden controls are navigation conveniences, not API authorization.
+`AuthDialog` embeds Clerk's sign-in/sign-up components inside the in-context dialog, exposing email and enabled social providers while retaining mode tabs, focus trapping/restoration, Escape/backdrop dismissal, responsive presentation, safe local redirects, and local-data consent copy. `/login` remains a deep-link and protected-route bridge rather than a second form. Editor sign-in preserves the current workflow; protected-route sign-in returns to the requested local route. Default and editor layouts display session identity and logout controls. `/settings/cloud-data` is authenticated and exposes independent, default-off session/template consent controls. On deployment-configured disabled hosts (`*.deno.net` in the documented Deno configuration), the shared authenticated-feature rule suppresses account/import/authenticated-template UI and both browser and Nitro middleware reject configured feature-owned routes with 404. Browser route middleware and hidden controls are navigation conveniences; Nitro feature gating is deployment segmentation, and neither replaces per-route API authorization.
 
 ## IAM Model
 
@@ -81,5 +81,5 @@ Passwords and hashes must never be logged or serialized through API outputs. `Pl
 - Any caller can supply another user's ids and can mutate IAM subjects; the ABAC evaluator is not wired into protected resources.
 - Registration constructs `PlainPassword` directly and therefore bypasses the available `PasswordValidator` strength rules.
 - The legacy custom endpoints have no rate limiting, login throttling, password reset, email verification, or documented session rotation; Clerk supplies these identity flows only for broker-managed users.
-- The runtime has an insecure development fallback session secret; production must override the documented `SESSION_SECRET`.
+- The runtime has an insecure local-development fallback session secret; every deployed Deno context must override it with `NUXT_SESSION_SECRET`.
 - The `/d*` `?userId=demo` browser bypass and prefix checks are UI-only and broader than exact route matching.

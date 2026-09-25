@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toRef } from "vue";
-import type { CodeMirrorLanguage } from "~/composables/useCodeMirror";
+import type { CodeMirrorLanguage, EditorStats } from "~/composables/useCodeMirror";
 
 const props = withDefaults(
     defineProps<{
@@ -18,6 +18,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
     "update:modelValue": [value: string];
+    "update:stats": [stats: EditorStats];
 }>();
 
 const { container, applyMarkdownFormat, focus } = useCodeMirror({
@@ -25,6 +26,7 @@ const { container, applyMarkdownFormat, focus } = useCodeMirror({
     language: toRef(props, "language"),
     readOnly: toRef(props, "readOnly"),
     onChange: (state) => emit("update:modelValue", state.doc.toString()),
+    onStatsChange: (stats) => emit("update:stats", stats),
 });
 
 defineExpose({ applyMarkdownFormat, focus });

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useTheme, type ThemeId } from "~/composables/useTheme";
+import type { EditorStats } from "~/composables/useCodeMirror";
 import type { CvDocumentSummary, CvTemplate } from "@core/domain/cv";
 
 const props = withDefaults(
@@ -11,6 +12,9 @@ const props = withDefaults(
         revision?: number;
         formattingEnabled?: boolean;
         showIndicators?: boolean;
+        cursorLine?: number;
+        cursorColumn?: number;
+        wordCount?: number;
     }>(),
     {
         title: "Untitled CV",
@@ -19,6 +23,9 @@ const props = withDefaults(
         revision: 0,
         formattingEnabled: true,
         showIndicators: true,
+        cursorLine: 1,
+        cursorColumn: 1,
+        wordCount: 0,
     },
 );
 
@@ -34,13 +41,12 @@ const emit = defineEmits<{
 }>();
 
 const route = useRoute();
-const isProfileRoute = (path: string) =>
-    path === "/profiles" || path.startsWith("/profiles/") || path.startsWith("/profiles?") || path.startsWith("/profiles#");
+const isProfileRoute = (path: string) => path === "/p" || path.startsWith("/p/");
 const lastCvRoute = useState<string>("editor:last-cv-route", () =>
     isProfileRoute(route.path) ? "/" : route.fullPath,
 );
 const lastProfileRoute = useState<string>("editor:last-profile-route", () =>
-    isProfileRoute(route.path) ? route.fullPath : "/profiles",
+    isProfileRoute(route.path) ? route.fullPath : "/p",
 );
 const cvContextRoute = computed(() => lastCvRoute.value);
 const profileContextRoute = computed(() => lastProfileRoute.value);
@@ -63,6 +69,7 @@ watch(
 
 const { current, themes, apply } = useTheme();
 const { user, logout } = useAppAuth();
+const { authenticated } = useFeatureFlags();
 const { openAuthDialog } = useAuthDialog();
 const { data: cvIndex, refresh: reloadCvDocuments } = await useFetch<{ documents: CvDocumentSummary[] }>("/api/cvs", {
     key: "editor-document-list",
@@ -76,6 +83,13 @@ const cvTemplates = computed(() => templateIndex.value?.templates ?? []);
 const selectedTemplate = ref<CvTemplate | null>(null);
 const templateSourceTab = ref<"markdown" | "css">("markdown");
 const showTemplateIndicators = ref(true);
+const templateStats = ref<EditorStats>({ line: 1, column: 1, words: 0 });
+// The layout owns the template editor, so its status must come from that view rather than the page.
+const statusStats = computed<EditorStats>(() =>
+    selectedTemplate.value
+        ? templateStats.value
+        : { line: props.cursorLine, column: props.cursorColumn, words: props.wordCount },
+);
 const isCloningTemplate = ref(false);
 const sourceFormattingEnabled = computed(() => props.formattingEnabled && !selectedTemplate.value);
 const indicatorsVisible = computed(() => selectedTemplate.value ? showTemplateIndicators.value : props.showIndicators);
@@ -322,7 +336,7 @@ onMounted(() => {
         if (cachedCvRoute?.startsWith("/") && !isProfileRoute(cachedCvRoute)) lastCvRoute.value = cachedCvRoute;
     } else {
         const cachedProfileRoute = sessionStorage.getItem("cv-sv:last-profile-route");
-        if (cachedProfileRoute?.startsWith("/profiles")) lastProfileRoute.value = cachedProfileRoute;
+        if (cachedProfileRoute?.startsWith("/p")) lastProfileRoute.value = cachedProfileRoute;
     }
 
     isSidebarOpen.value = localStorage.getItem("editor-sidebar-open") !== "false";
@@ -457,7 +471,7 @@ const handleLogout = async () => {
                 <div v-if="selectedTemplate" class="template-header-actions">
                     <span class="template-readonly-label">READ ONLY · {{ selectedTemplate.tags.join(" · ") }}</span>
                     <button
-                        v-if="selectedTemplate.tags.includes('public')"
+                        v-if="authenticated && selectedTemplate.tags.includes('public')"
                         class="template-clone-button"
                         type="button"
                         :disabled="isCloningTemplate"
@@ -467,7 +481,7 @@ const handleLogout = async () => {
                     </button>
                     <button class="template-back-button" type="button" @click="closeTemplate">Back to CV</button>
                 </div>
-                <button v-if="route.path !== '/profiles'" class="header-button" type="button" @click="isImportOpen = true">Import</button>
+                <button v-if="authenticated && route.path !== '/p'" class="header-button" type="button" @click="isImportOpen = true">Import</button>
                 <button class="header-button header-button--primary" type="button" @click="isExportOpen = true">Export</button>
                 <select
                     class="theme-select"
@@ -499,17 +513,19 @@ const handleLogout = async () => {
             </div>
 
             <div class="activity-bar__bottom">
-                <button class="activity-button" type="button" aria-label="Help">?</button>
-                <button
-                    v-if="user"
-                    class="activity-button"
-                    type="button"
-                    :aria-label="`Sign out ${user.email}`"
-                    @click="handleLogout"
-                >
-                    ◉
-                </button>
-                <button v-else class="activity-button" type="button" aria-label="Sign in or create account" @click="openAuthDialog('login')">◉</button>
+                <NuxtLink class="activity-button" to="/about" aria-label="Help">?</NuxtLink>
+                <template v-if="authenticated">
+                    <button
+                        v-if="user"
+                        class="activity-button"
+                        type="button"
+                        :aria-label="`Sign out ${user.email}`"
+                        @click="handleLogout"
+                    >
+                        ◉
+                    </button>
+                    <button v-else class="activity-button" type="button" aria-label="Sign in or create account" @click="openAuthDialog('login')">◉</button>
+                </template>
             </div>
         </nav>
 
@@ -598,6 +614,7 @@ const handleLogout = async () => {
                             :language="templateSourceTab"
                             :show-indicators="showTemplateIndicators"
                             read-only
+                            @update:stats="templateStats = $event"
                         />
                     </div>
                     <p v-if="operationError" class="template-inline-error">{{ operationError }}</p>
@@ -753,8 +770,8 @@ const handleLogout = async () => {
             <div class="editor-statusbar__left">
                 <span class="save-state" :class="`save-state--${saveState}`">{{ saveState }}</span>
                 <span v-if="revision">rev {{ revision }}</span>
-                <span>Ln 1, Col 1</span>
-                <span>0 words</span>
+                <span>Ln {{ statusStats.line }}, Col {{ statusStats.column }}</span>
+                <span>{{ statusStats.words }} {{ statusStats.words === 1 ? 'word' : 'words' }}</span>
                 <span>{{ pageCount }} {{ pageCount === 1 ? 'page' : 'pages' }}</span>
                 <span>A4</span>
             </div>

@@ -9,6 +9,7 @@ const nav = [
 ];
 
 const { user, logout } = useAppAuth();
+const { authenticated } = useFeatureFlags();
 const { openAuthDialog } = useAuthDialog();
 const handleLogout = async () => {
     await logout();
@@ -53,20 +54,22 @@ const handleLogout = async () => {
                             {{ t.label }}
                         </option>
                     </select>
-                    <template v-if="user">
-                        <NuxtLink to="/settings/cloud-data" class="btn btn-ghost btn-sm">Cloud data</NuxtLink>
-                        <span class="user-email">{{ user.email }}</span>
-                        <button
-                            class="btn btn-ghost btn-sm"
-                            type="button"
-                            @click="handleLogout"
-                        >
-                            Logout
-                        </button>
-                    </template>
-                    <template v-else>
-                        <button class="btn btn-ghost btn-sm" type="button" @click="openAuthDialog('login')">Sign in</button>
-                        <button class="btn btn-primary btn-sm" type="button" @click="openAuthDialog('signup')">Create account</button>
+                    <template v-if="authenticated">
+                        <template v-if="user">
+                            <NuxtLink to="/settings/cloud-data" class="btn btn-ghost btn-sm">Cloud data</NuxtLink>
+                            <span class="user-email">{{ user.email }}</span>
+                            <button
+                                class="btn btn-ghost btn-sm"
+                                type="button"
+                                @click="handleLogout"
+                            >
+                                Logout
+                            </button>
+                        </template>
+                        <template v-else>
+                            <button class="btn btn-ghost btn-sm" type="button" @click="openAuthDialog('login')">Sign in</button>
+                            <button class="btn btn-primary btn-sm" type="button" @click="openAuthDialog('signup')">Create account</button>
+                        </template>
                     </template>
                 </div>
             </div>

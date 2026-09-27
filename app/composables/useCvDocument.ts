@@ -88,5 +88,9 @@ export async function useCvDocument(
         events?.close();
     });
 
-    return { resolvedId, markdown, css, revision, saveState };
+    /** Adopt a server-written document (for example, a profile switch) without re-saving it. */
+    const applyDocument = (document: CvDocument) => applyRemote(document);
+    const isDirty = () => dirty;
+
+    return { resolvedId, markdown, css, revision, saveState, sourceId, applyDocument, isDirty };
 }

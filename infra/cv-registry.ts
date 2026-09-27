@@ -15,6 +15,9 @@ import { registerListCvTemplates } from "@core/handlers/list-cv-templates";
 import { registerGetCvTemplate } from "@core/handlers/get-cv-template";
 import { registerCloneCvTemplate } from "@core/handlers/clone-cv-template";
 import { registerSaveCvTemplate } from "@core/handlers/save-cv-template";
+import { registerComposeCvProfile } from "@core/handlers/compose-cv-profile";
+import { registerUpdateCvApplicationProfile } from "@core/handlers/update-cv-application-profile";
+import { registerSwitchCvProfile } from "@core/handlers/switch-cv-profile";
 import type { CvDocumentPort } from "@core/repos/cv-document.repo";
 import type { CvApplicationRepository } from "@core/repos/cv-application.repo";
 import type { CvArtifactRepository, CvImportRepository } from "@core/repos/cv-import.repo";
@@ -48,4 +51,7 @@ export function registerCvHandlers(deps: CvDependencies): void {
    registerGetCvTemplate(deps.templates);
    registerCloneCvTemplate(deps.templates);
    registerSaveCvTemplate(deps.templates);
+   registerComposeCvProfile(deps);
+   registerUpdateCvApplicationProfile(deps);
+   registerSwitchCvProfile();
 }

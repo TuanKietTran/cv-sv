@@ -3,6 +3,7 @@ import referenceCvCss from "~/data/reference-cv.css?raw";
 import { exportCvImages, type CvImageExportOptions, type CvImageFormat } from "~/utils/exportCvImage";
 import { exportCvBundle, type CvDocumentExportFormat } from "~/utils/exportCvDocument";
 import type { EditorStats, MarkdownFormat } from "~/composables/useCodeMirror";
+import type { CvDocument, CvProfileProps, CvTemplate } from "@core/domain/cv";
 
 definePageMeta({ layout: false });
 
@@ -13,7 +14,7 @@ const activeTab = ref<SourceTab>("markdown");
 const showIndicators = ref(true);
 const sourceEditor = ref<{ applyMarkdownFormat: (format: MarkdownFormat) => void } | null>(null);
 const editorStats = ref<EditorStats>({ line: 1, column: 1, words: 0 });
-const { resolvedId, markdown, css, revision, saveState } = await useCvDocument(documentId, {
+const { resolvedId, markdown, css, revision, saveState, sourceId, applyDocument, isDirty } = await useCvDocument(documentId, {
     markdown: "",
     css: referenceCvCss,
 });
@@ -38,6 +39,51 @@ const exportImage = (format: CvImageFormat, options: CvImageExportOptions) =>
     );
 const exportDocument = (format: CvDocumentExportFormat) =>
     exportCvBundle(format, documentTitle.value, markdown.value, css.value);
+type LocalProfile = CvProfileProps & { id: string };
+const localProfiles = ref<LocalProfile[]>([]);
+const { data: templateIndex } = useNuxtData<{ templates: CvTemplate[] }>("editor-template-list");
+const switchTemplates = computed(() => templateIndex.value?.templates ?? []);
+const switchLayout = ref("");
+const switchingProfile = ref(false);
+const switchError = ref("");
+const readLocalProfiles = () => {
+    try {
+        const stored = JSON.parse(localStorage.getItem("cv-sv:local-profiles:v1") || "[]");
+        localProfiles.value = Array.isArray(stored) ? stored.filter(profile => profile?.id && profile?.identity?.fullName) : [];
+    } catch { localProfiles.value = []; }
+};
+onMounted(() => {
+    readLocalProfiles();
+    window.addEventListener("focus", readLocalProfiles);
+});
+onBeforeUnmount(() => window.removeEventListener("focus", readLocalProfiles));
+const switchProfile = async (event: Event) => {
+    const select = event.target as HTMLSelectElement;
+    const profile = localProfiles.value.find(item => item.id === select.value);
+    select.value = "";
+    if (!profile || switchingProfile.value) return;
+    if (isDirty()) { switchError.value = "Wait for the current edit to save."; return; }
+    const [templateId, templateVersion] = switchLayout.value.split("@");
+    switchingProfile.value = true;
+    switchError.value = "";
+    try {
+        const result = await $fetch<{ document: CvDocument }>(`/api/cvs/${encodeURIComponent(resolvedId.value)}/profile`, {
+            method: "PUT",
+            body: {
+                profile,
+                profileId: profile.id,
+                template: templateId ? { id: templateId, version: Number(templateVersion) } : undefined,
+                expectedRevision: revision.value || undefined,
+                sourceId: sourceId.value,
+            },
+        });
+        applyDocument(result.document);
+    } catch (error: any) {
+        switchError.value = error?.data?.statusMessage ?? error?.message ?? "Profile switch failed.";
+    } finally {
+        switchingProfile.value = false;
+    }
+};
 const activeSource = computed({
     get: () => activeTab.value === "markdown" ? markdown.value : css.value,
     set: (value: string) => {
@@ -75,6 +121,19 @@ const activeSource = computed({
             >
                 {{ tab === "markdown" ? "content.md" : "style.css" }}
             </button>
+            <div class="profile-switch">
+                <select v-model="switchLayout" aria-label="Layout for profile switch" :disabled="switchingProfile">
+                    <option value="">Current layout</option>
+                    <option v-for="template in switchTemplates" :key="`${template.id}@${template.version}`" :value="`${template.id}@${template.version}`">
+                        {{ template.name }} v{{ template.version }}
+                    </option>
+                </select>
+                <select aria-label="Switch profile" :disabled="switchingProfile || !localProfiles.length" @change="switchProfile">
+                    <option value="">{{ switchingProfile ? "Switching…" : localProfiles.length ? "Switch profile…" : "No local profiles" }}</option>
+                    <option v-for="profile in localProfiles" :key="profile.id" :value="profile.id">{{ profile.identity.fullName }}</option>
+                </select>
+                <span v-if="switchError" class="profile-switch__error" role="alert" :title="switchError">{{ switchError }}</span>
+            </div>
         </template>
 
         <template #editor>
@@ -103,5 +162,31 @@ const activeSource = computed({
 .source-tab--active {
     color: var(--fg-text);
     border-bottom: 1px solid var(--accent);
+}
+.profile-switch {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    padding: 0 8px;
+    min-width: 0;
+}
+.profile-switch select {
+    max-width: 150px;
+    height: 22px;
+    border: 1px solid var(--border, var(--fg-subtext0));
+    border-radius: 4px;
+    background: transparent;
+    color: var(--fg-text);
+    font: inherit;
+    font-size: 12px;
+}
+.profile-switch__error {
+    overflow: hidden;
+    max-width: 180px;
+    color: var(--red, #e64553);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 </style>

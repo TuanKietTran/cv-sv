@@ -5,6 +5,7 @@ import { listCvDocumentsQuery } from "@core/handlers/list-cv-documents";
 import { getCvDocumentQuery } from "@core/handlers/get-cv-document";
 import { saveCvSourceCommand } from "@core/handlers/save-cv-source";
 import { patchCvSourceCommand } from "@core/handlers/patch-cv-source";
+import { switchCvProfileCommand } from "@core/handlers/switch-cv-profile";
 
 const textResult = (value: unknown) => ({
     content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
@@ -58,6 +59,26 @@ export function createCvMcpServer(): McpServer {
             oldText,
             newText,
             expectedRevision,
+            sourceId: "mcp",
+        })),
+    ));
+
+    server.registerTool("switch_cv_profile", {
+        description: "Re-render a CV with another profile, keeping the session's layout or switching to a public template. Pass expectedRevision to prevent overwriting concurrent edits.",
+        inputSchema: {
+            id: z.string().default("master"),
+            profile: z.record(z.string(), z.unknown()),
+            templateId: z.string().optional(),
+            templateVersion: z.number().int().positive().optional(),
+            expectedRevision: z.number().int().positive().optional(),
+        },
+    }, async ({ id, profile, templateId, templateVersion, expectedRevision }) => textResult(
+        await mediator.send(switchCvProfileCommand({
+            documentId: id,
+            profile,
+            template: templateId ? { id: templateId, version: templateVersion } : undefined,
+            expectedRevision,
+            publicOnly: true,
             sourceId: "mcp",
         })),
     ));

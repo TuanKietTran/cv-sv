@@ -84,6 +84,7 @@ ruxt/
 | Plan change | `PUT /api/subscriptions/:id/plan-change`, `DELETE /api/subscriptions/:id/plan-change` |
 | IAM | `POST /api/iam/check-access`, `GET/PUT/DELETE /api/iam/subjects/:userId` |
 | CV documents | `GET /api/cvs`, `GET/PUT /api/cvs/:id`, `GET /api/cvs/:id/events` |
+| CV profile switch | `POST /api/cvs/:id/profile/preview`, `PUT /api/cvs/:id/profile` |
 | Automation | `POST /mcp` (MCP Streamable HTTP) |
 
 ## CV editor API and MCP

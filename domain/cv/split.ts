@@ -13,9 +13,10 @@ export interface CvSplitResult {
    markdownSkeleton: string;
 }
 
-type SectionKind =
+export type CvSectionKind =
    | "header" | "summary" | "experience" | "education" | "skills"
    | "projects" | "certifications" | "languages" | "other";
+type SectionKind = CvSectionKind;
 
 type Block =
    | { type: "heading"; level: number; text: string }
@@ -100,6 +101,9 @@ const metaTokens = (line: string) =>
    unwrapEmphasis(stripAttributes(line).trim()).split(TOKEN_SEPARATOR).map(plainCvText).filter(Boolean);
 const sectionKind = (title: string): SectionKind =>
    SECTION_KINDS.find(([, pattern]) => pattern.test(title))?.[0] ?? "other";
+
+/** Classify a `#`/`##` section heading by the profile field it presents. */
+export const classifyCvSection = (title: string): CvSectionKind => sectionKind(plainCvText(title));
 
 /** Classify one contact token such as a mailto link, phone number, or profile URL. */
 export function classifyCvContact(token: string): CvContact | null {

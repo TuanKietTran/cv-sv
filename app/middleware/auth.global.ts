@@ -6,7 +6,7 @@ import {
 
 const PROTECTED = ["/d", "/settings"];
 
-export default defineNuxtRouteMiddleware((to) => {
+export default defineNuxtRouteMiddleware(async (to) => {
   const config = useRuntimeConfig();
   const hostname = import.meta.client ? window.location.hostname : useRequestURL().hostname;
   const authenticatedFeature = createAuthenticatedFeature(
@@ -23,7 +23,10 @@ export default defineNuxtRouteMiddleware((to) => {
     const userId = to.query.userId as string | undefined;
     if (to.path.startsWith("/d") && userId === "demo") return;
 
-    const { user } = useAppAuth();
+    const { user, fetchMe } = useAppAuth();
+    // A Clerk session created client-side (OAuth callback) is not in the
+    // server-rendered user yet; re-check once before bouncing to /login.
+    if (!user.value && import.meta.client) await fetchMe();
     if (!user.value) {
       return navigateTo({ path: "/login", query: { redirect: to.fullPath } });
     }

@@ -68,7 +68,7 @@ watch(
 );
 
 const { current, themes, apply } = useTheme();
-const { user, logout } = useAppAuth();
+const { user } = useAppAuth();
 const { authenticated } = useFeatureFlags();
 const { openAuthDialog } = useAuthDialog();
 const { data: cvIndex, refresh: reloadCvDocuments } = await useFetch<{ documents: CvDocumentSummary[] }>("/api/cvs", {
@@ -403,10 +403,6 @@ const handleImportCommitted = async (documentId: string) => {
     await reloadCvDocuments();
     await navigateTo(documentPath(documentId));
 };
-
-const handleLogout = async () => {
-    await logout();
-};
 </script>
 
 <template>
@@ -516,15 +512,13 @@ const handleLogout = async () => {
                 <NuxtLink class="activity-button" to="/about" aria-label="Help">?</NuxtLink>
                 <template v-if="authenticated">
                     <button
-                        v-if="user"
                         class="activity-button"
                         type="button"
-                        :aria-label="`Sign out ${user.email}`"
-                        @click="handleLogout"
-                    >
-                        ◉
-                    </button>
-                    <button v-else class="activity-button" type="button" aria-label="Sign in or create account" @click="openAuthDialog('login')">◉</button>
+                        data-account-trigger
+                        aria-haspopup="dialog"
+                        :aria-label="user ? `Account settings for ${user.email}` : 'Sign in or create account'"
+                        @click="openAuthDialog('login')"
+                    >◉</button>
                 </template>
             </div>
         </nav>

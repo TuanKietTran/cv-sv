@@ -17,8 +17,11 @@ const writes = new Map<string, Promise<unknown>>();
 const idPattern = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/;
 const hashedRoutePattern = /^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 const isRouteId = (id: string) => hashedRoutePattern.test(id);
+const PLACEHOLDER_TITLE = "Untitled CV";
+// The placeholder is not an explicit name: fall back to the CV heading so sessions
+// are labelled by whoever the CV is for (for example, after a profile switch).
 const titleFromDocument = (document: Pick<CvDocumentProps, "id" | "markdown" | "title">) =>
-    document.title?.trim()
+    (document.title?.trim() !== PLACEHOLDER_TITLE && document.title?.trim())
     || document.markdown.match(/^#\s+(.+)$/m)?.[1]?.replace(/\s*\{[^{}]+\}\s*$/, "").trim()
     || document.id.replaceAll("-", " ").replace(/\b\w/g, character => character.toUpperCase());
 
@@ -72,7 +75,7 @@ async function readDocument(id: string): Promise<CvDocument | undefined> {
 function seedDocument(id: string): CvDocument {
     return CvDocument.create({
         id,
-        title: id === "master" ? "Current CV" : "Untitled CV",
+        title: id === "master" ? "Current CV" : PLACEHOLDER_TITLE,
         markdown: id === "master" ? referenceMarkdown : `# ${id}\n\nStart writing your CV.\n`,
         css: referenceCss,
         revision: 1,
@@ -176,7 +179,7 @@ export async function createCvDocument(
         }
         const document = CvDocument.create({
             id,
-            title: input.title?.trim() || "Untitled CV",
+            title: input.title?.trim() || PLACEHOLDER_TITLE,
             markdown: input.markdown!,
             css: input.css!,
             revision: 1,

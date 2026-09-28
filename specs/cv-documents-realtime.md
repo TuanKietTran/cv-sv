@@ -44,7 +44,7 @@ Writes for the same id are chained through a process-local promise queue, includ
 
 ## Route-ID Soft Migration
 
-Session route identity is independent from its sidebar title. Newly created records use UUID ids and persist `title: "Untitled CV"`; forked records use a UUID plus an explicit copy title. Renaming changes only `title`, so `/e/:id` remains stable.
+Session route identity is independent from its sidebar title. Newly created records use UUID ids and persist `title: "Untitled CV"`, a placeholder rather than an explicit name: listings label such sessions by their CV `#` heading (so a profile switch labels the session by that person) until the session is renamed; forked records use a UUID plus an explicit copy title. Renaming changes only `title`, so `/e/:id` remains stable.
 
 When document listing or an old slug lookup encounters a legacy non-hash id, including the former `master` record, the filesystem adapter deterministically derives a 32-character SHA-256 route id, copies the complete record under that id with its human title preserved, and writes `document-route-migrations:<legacy-id>` as an alias. The legacy record remains for rollback but is suppressed from listings. Old slug requests resolve through the alias, and the editor replace-navigates to `/e/<hash>`. Existing UUID/hash records always win.
 

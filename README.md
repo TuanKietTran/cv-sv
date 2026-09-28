@@ -25,6 +25,7 @@ pnpm dev                # http://localhost:3000
 - **CV editor** — Markdown and CSS source editing with sanitized live preview, A4 pagination, zoom, and responsive panes
 - **Realtime CV documents** — filesystem-backed Nitro storage, optimistic revisions, debounced autosave, and SSE updates
 - **CV import** — authenticated PDF/image extraction into versioned profile snapshots composed with immutable templates
+- **Local profiles** — browser-only profile editor with passphrase-encrypted (AES-256-GCM) import, export and copy-to-clipboard
 - **CV export and automation** — browser PDF, 2× PNG/JPEG output, and Streamable HTTP MCP tools
 - **Subscription lifecycle** — trialing, active, paused, past-due, cancelled, expired with enforced state machine transitions
 - **Plan catalog** — price (minor-unit currency), billing cycle (weekly → yearly), optional trial period, feature list

@@ -15,6 +15,8 @@ const props = withDefaults(
         cursorLine?: number;
         cursorColumn?: number;
         wordCount?: number;
+        /** Page-specific export. When set, the header Export button emits `export` instead of opening the CV export dialog. */
+        exportAction?: { label: string; title?: string; disabled?: boolean } | null;
     }>(),
     {
         title: "Untitled CV",
@@ -26,6 +28,7 @@ const props = withDefaults(
         cursorLine: 1,
         cursorColumn: 1,
         wordCount: 0,
+        exportAction: null,
     },
 );
 
@@ -38,6 +41,7 @@ const emit = defineEmits<{
     exportDocument: [format: "md" | "html" | "jsonresume" | "yaml" | "docx"];
     format: [format: "bold" | "italic" | "link" | "heading" | "quote" | "bullet" | "code"];
     toggleIndicators: [];
+    export: [];
 }>();
 
 const route = useRoute();
@@ -478,7 +482,15 @@ const handleImportCommitted = async (documentId: string) => {
                     <button class="template-back-button" type="button" @click="closeTemplate">Back to CV</button>
                 </div>
                 <button v-if="authenticated && route.path !== '/p'" class="header-button" type="button" @click="isImportOpen = true">Import</button>
-                <button v-if="!isProfileRoute(route.path)" class="header-button header-button--primary" type="button" @click="isExportOpen = true">Export</button>
+                <button
+                    v-if="exportAction"
+                    class="header-button header-button--primary"
+                    type="button"
+                    :title="exportAction.title"
+                    :disabled="exportAction.disabled"
+                    @click="emit('export')"
+                >{{ exportAction.label }}</button>
+                <button v-else-if="!isProfileRoute(route.path)" class="header-button header-button--primary" type="button" @click="isExportOpen = true">Export</button>
                 <select
                     class="theme-select"
                     :value="current"
@@ -949,6 +961,11 @@ button {
     border-color: var(--accent);
     background: var(--accent);
     color: var(--bg-crust);
+}
+
+.header-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
 }
 
 .theme-select {

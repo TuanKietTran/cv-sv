@@ -107,6 +107,12 @@ const closeTransfer = () => { if (!transfer.busy) transfer.mode = null; };
 const transferLabel = computed(() => transfer.targets.length === 1
     ? transfer.targets[0]!.identity.fullName || "profile"
     : `${transfer.targets.length} profiles`);
+// The header Export follows the editor context: the open saved profile, else every profile.
+const selectedProfile = computed(() => profiles.value.find(item => item.id === editingId.value) ?? null);
+const headerExport = computed(() => selectedProfile.value
+    ? { label: "Export profile", title: `Download ${selectedProfile.value.identity.fullName || "this profile"} as an encrypted file` }
+    : { label: "Export all", title: "Download all local profiles as an encrypted file", disabled: !profiles.value.length });
+const exportFromHeader = () => openTransfer("export", selectedProfile.value ? [selectedProfile.value] : profiles.value);
 const readTransferFile = async (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
@@ -154,7 +160,7 @@ const runTransfer = async () => {
 </script>
 
 <template>
-    <NuxtLayout name="editor" title="Profile editor" app-label="LOCAL" :formatting-enabled="false">
+    <NuxtLayout name="editor" title="Profile editor" app-label="LOCAL" :formatting-enabled="false" :export-action="headerExport" @export="exportFromHeader">
         <template #sidebar>
             <nav class="profiles-list" aria-label="Local profiles">
                 <header class="profiles-list__header"><span>Profiles</span></header>

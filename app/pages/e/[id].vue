@@ -78,6 +78,7 @@ const switchProfile = async (event: Event) => {
             },
         });
         applyDocument(result.document);
+        await refreshNuxtData("editor-document-list");
     } catch (error: any) {
         switchError.value = error?.data?.statusMessage ?? error?.message ?? "Profile switch failed.";
     } finally {
@@ -130,7 +131,7 @@ const activeSource = computed({
                 </select>
                 <select aria-label="Switch profile" :disabled="switchingProfile || !localProfiles.length" @change="switchProfile">
                     <option value="">{{ switchingProfile ? "Switching…" : localProfiles.length ? "Switch profile…" : "No local profiles" }}</option>
-                    <option v-for="profile in localProfiles" :key="profile.id" :value="profile.id">{{ profile.identity.fullName }}</option>
+                    <option v-for="profile in localProfiles" :key="profile.id" :value="profile.id">{{ profile.identity.headline ? `${profile.identity.fullName} — ${profile.identity.headline}` : profile.identity.fullName }}</option>
                 </select>
                 <span v-if="switchError" class="profile-switch__error" role="alert" :title="switchError">{{ switchError }}</span>
             </div>

@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { toRaw } from "vue";
 import type { CvContactKind, CvProfileProps } from "@core/domain/cv";
+import { downloadBlob, safeFilename } from "~/utils/exportCvImage";
+import {
+    MIN_PASSPHRASE_LENGTH, PROFILE_FILE_EXTENSION, ProfileTransferError,
+    decryptProfiles, encryptProfiles, envelopeToFile, envelopeToToken,
+} from "~/utils/profileTransfer";
 
 type LocalProfile = CvProfileProps & { id: string; createdAt: number; updatedAt: number };
 type LocalProfileInput = CvProfileProps;
@@ -63,9 +68,9 @@ const save = () => {
     const items = [...profiles.value];
     if (editingId.value) {
         const index = items.findIndex(item => item.id === editingId.value);
-        if (index >= 0) items[index] = { ...items[index], ...structuredClone(draft.value), updatedAt: now };
+        if (index >= 0) items[index] = { ...items[index], ...structuredClone(toRaw(draft.value)), updatedAt: now };
     } else {
-        items.push({ ...structuredClone(draft.value), id: uid("profile"), createdAt: now, updatedAt: now });
+        items.push({ ...structuredClone(toRaw(draft.value)), id: uid("profile"), createdAt: now, updatedAt: now });
     }
     persist(items);
     editingId.value = null;
@@ -83,6 +88,69 @@ const addCertification = () => draft.value.certifications.push({ name: "" });
 const addEducation = () => draft.value.education.push({ school: "", degree: "", location: "", start: "", end: "", details: "" });
 const addProject = () => draft.value.projects.push({ name: "", url: "", description: "", technologies: [] });
 const addLanguage = () => draft.value.languages.push("");
+
+type TransferMode = "export" | "copy" | "import";
+const transfer = reactive({
+    mode: null as TransferMode | null,
+    targets: [] as LocalProfile[],
+    passphrase: "", confirm: "", input: "", fileName: "",
+    error: "", status: "", busy: false,
+});
+const toProfileProps = (profile: LocalProfile): CvProfileProps => {
+    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...value } = structuredClone(toRaw(profile));
+    return value;
+};
+const openTransfer = (mode: TransferMode, targets: LocalProfile[] = []) => {
+    Object.assign(transfer, { mode, targets, passphrase: "", confirm: "", input: "", fileName: "", error: "", status: "", busy: false });
+};
+const closeTransfer = () => { if (!transfer.busy) transfer.mode = null; };
+const transferLabel = computed(() => transfer.targets.length === 1
+    ? transfer.targets[0]!.identity.fullName || "profile"
+    : `${transfer.targets.length} profiles`);
+const readTransferFile = async (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { transfer.error = "File is too large."; return; }
+    transfer.input = await file.text();
+    transfer.fileName = file.name;
+    transfer.error = "";
+};
+const runTransfer = async () => {
+    transfer.error = "";
+    transfer.status = "";
+    if (transfer.mode !== "import") {
+        if (transfer.passphrase.length < MIN_PASSPHRASE_LENGTH) { transfer.error = `Passphrase must be at least ${MIN_PASSPHRASE_LENGTH} characters.`; return; }
+        if (transfer.passphrase !== transfer.confirm) { transfer.error = "Passphrases do not match."; return; }
+    } else if (!transfer.input.trim()) { transfer.error = "Choose a file or paste an encrypted profile."; return; }
+    transfer.busy = true;
+    try {
+        if (transfer.mode === "import") {
+            const imported = await decryptProfiles(transfer.input, transfer.passphrase);
+            if (!imported.length) throw new ProfileTransferError("The export contains no profiles.", "format");
+            const now = Date.now();
+            persist([...profiles.value, ...imported.map((profile, index) => ({ ...profile, id: uid("profile"), createdAt: now, updatedAt: now + index }))]);
+            transfer.busy = false;
+            transfer.mode = null;
+            return;
+        }
+        const envelope = await encryptProfiles(transfer.targets.map(toProfileProps), transfer.passphrase);
+        if (transfer.mode === "copy") {
+            await navigator.clipboard.writeText(envelopeToToken(envelope));
+            transfer.status = "Encrypted profile copied. Share the passphrase separately.";
+        } else {
+            const name = transfer.targets.length === 1 ? safeFilename(transferLabel.value) : "profiles";
+            downloadBlob(new Blob([envelopeToFile(envelope)], { type: "application/json" }), `${name}${PROFILE_FILE_EXTENSION}`);
+            transfer.status = "Encrypted file downloaded. Share the passphrase separately.";
+        }
+        transfer.passphrase = "";
+        transfer.confirm = "";
+    } catch (cause) {
+        transfer.error = cause instanceof ProfileTransferError ? cause.message
+            : transfer.mode === "copy" ? "Clipboard access was denied." : "Transfer failed.";
+    } finally {
+        transfer.busy = false;
+    }
+};
 </script>
 
 <template>
@@ -91,6 +159,10 @@ const addLanguage = () => draft.value.languages.push("");
             <nav class="profiles-list" aria-label="Local profiles">
                 <header class="profiles-list__header"><span>Profiles</span></header>
                 <button class="profiles-new" type="button" @click="startCreate">＋ New profile</button>
+                <div class="profiles-transfer">
+                    <button type="button" @click="openTransfer('import')">Import</button>
+                    <button type="button" :disabled="!profiles.length" @click="openTransfer('export', profiles)">Export all</button>
+                </div>
                 <p v-if="!profiles.length" class="profiles-empty">No local profiles yet.</p>
                 <button v-for="profile in profiles" :key="profile.id" class="profile-card" :class="{ active: editingId === profile.id }" type="button" @click="startEdit(profile)">
                     <span><strong>{{ profile.identity.fullName }}</strong><small>{{ profile.identity.headline || "No headline" }}</small></span>
@@ -173,9 +245,40 @@ const addLanguage = () => draft.value.languages.push("");
                         <button type="button" aria-label="Remove language" @click="draft.languages.splice(index, 1)">×</button>
                     </div>
                     <p v-if="error" class="profile-error">{{ error }}</p>
-                    <footer><button type="button" @click="editingId = null">Cancel</button><button class="profile-save" type="button" @click="save">Save profile</button></footer>
+                    <footer>
+                        <template v-if="editingId">
+                            <button type="button" title="Copy this saved profile to the clipboard, encrypted" @click="openTransfer('copy', profiles.filter(item => item.id === editingId))">Copy encrypted</button>
+                            <button type="button" title="Download this saved profile as an encrypted file" @click="openTransfer('export', profiles.filter(item => item.id === editingId))">Export</button>
+                            <span class="profile-footer-spacer" />
+                        </template>
+                        <button type="button" @click="editingId = null">Cancel</button><button class="profile-save" type="button" @click="save">Save profile</button></footer>
                 </template>
             </section>
+            <div v-if="transfer.mode" class="transfer-backdrop" @click.self="closeTransfer" @keydown.esc="closeTransfer">
+                <form class="transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="transfer-title" @submit.prevent="runTransfer">
+                    <h2 id="transfer-title">
+                        {{ transfer.mode === "import" ? "Import encrypted profiles" : transfer.mode === "copy" ? `Copy ${transferLabel} encrypted` : `Export ${transferLabel} encrypted` }}
+                    </h2>
+                    <template v-if="transfer.mode === 'import'">
+                        <label>Encrypted file<input type="file" :accept="`${PROFILE_FILE_EXTENSION},application/json,text/plain`" @change="readTransferFile"></label>
+                        <label>…or paste from clipboard<textarea v-model="transfer.input" rows="4" placeholder="cvsv-profile:…" spellcheck="false" @input="transfer.fileName = ''" /></label>
+                        <label>Passphrase<input v-model="transfer.passphrase" type="password" autocomplete="off" autofocus></label>
+                    </template>
+                    <template v-else>
+                        <p class="transfer-hint">Profiles are encrypted in your browser with AES-256-GCM. Anyone with the passphrase can read them; it cannot be recovered.</p>
+                        <label>Passphrase<input v-model="transfer.passphrase" type="password" autocomplete="new-password" :minlength="MIN_PASSPHRASE_LENGTH" autofocus></label>
+                        <label>Confirm passphrase<input v-model="transfer.confirm" type="password" autocomplete="new-password"></label>
+                    </template>
+                    <p v-if="transfer.error" class="profile-error" role="alert">{{ transfer.error }}</p>
+                    <p v-if="transfer.status" class="transfer-status" role="status">{{ transfer.status }}</p>
+                    <footer>
+                        <button type="button" :disabled="transfer.busy" @click="closeTransfer">{{ transfer.status ? "Done" : "Cancel" }}</button>
+                        <button class="profile-save" type="submit" :disabled="transfer.busy">
+                            {{ transfer.busy ? "Working…" : transfer.mode === "import" ? "Decrypt & import" : transfer.mode === "copy" ? "Encrypt & copy" : "Encrypt & download" }}
+                        </button>
+                    </footer>
+                </form>
+            </div>
             </main>
         </template>
     </NuxtLayout>
@@ -211,6 +314,19 @@ const addLanguage = () => draft.value.languages.push("");
 .compact-row--single { grid-template-columns: minmax(0, 1fr) auto; }
 .education-row { display: grid; grid-template-columns: 1.5fr 1.5fr 1fr .8fr .8fr 1.5fr auto; gap: 8px; margin-bottom: 8px; }
 .project-row { display: grid; grid-template-columns: 1fr 1.3fr 1.5fr auto; gap: 8px; }
+.profiles-transfer { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: -4px 0 12px; }
+.profiles-transfer button, .transfer-dialog footer button { border: 1px solid var(--border, #333); border-radius: 3px; padding: 6px 9px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.profiles-transfer button:disabled, .transfer-dialog button:disabled { opacity: .5; cursor: default; }
+.profile-footer-spacer { flex: 1; }
+.transfer-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / .55); }
+.transfer-dialog { box-sizing: border-box; width: min(460px, 100%); padding: 20px; border: 1px solid var(--border, #333); border-radius: 6px; background: var(--bg-base, #111); }
+.transfer-dialog h2 { margin: 0 0 14px; font-size: 13px; font-weight: 500; }
+.transfer-dialog label { display: grid; gap: 6px; margin-bottom: 12px; color: var(--fg-subtext1, #aaa); font-size: 11px; }
+.transfer-dialog input, .transfer-dialog textarea { min-width: 0; padding: 8px; border: 1px solid var(--border, #333); border-radius: 3px; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; resize: vertical; }
+.transfer-hint { margin: 0 0 12px; color: var(--fg-subtext0, #888); font-size: 11px; line-height: 1.5; }
+.transfer-status { color: var(--success, #a6e3a1); }
+.transfer-dialog footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.transfer-dialog footer .profile-save { border-color: var(--accent, #89b4fa); background: var(--accent, #89b4fa); color: #111; }
 .profile-error { color: var(--danger, #f38ba8); }
 .profile-form footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 .profile-form footer .profile-save { border-color: var(--accent, #89b4fa); background: var(--accent, #89b4fa); color: #111; }

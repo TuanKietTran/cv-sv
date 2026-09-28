@@ -482,7 +482,7 @@ const handleLogout = async () => {
                     <button class="template-back-button" type="button" @click="closeTemplate">Back to CV</button>
                 </div>
                 <button v-if="authenticated && route.path !== '/p'" class="header-button" type="button" @click="isImportOpen = true">Import</button>
-                <button class="header-button header-button--primary" type="button" @click="isExportOpen = true">Export</button>
+                <button v-if="!isProfileRoute(route.path)" class="header-button header-button--primary" type="button" @click="isExportOpen = true">Export</button>
                 <select
                     class="theme-select"
                     :value="current"

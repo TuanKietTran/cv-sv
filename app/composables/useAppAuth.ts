@@ -26,9 +26,9 @@ export function useAppAuth() {
     await fetchMe();
   };
 
-  const logout = async () => {
+  const logout = async (options: { redirectUrl?: string } = {}) => {
     const clerk = useClerk();
-    if (import.meta.client && clerk.value) await clerk.value.signOut();
+    if (import.meta.client && clerk.value) await clerk.value.signOut(options);
     await $fetch("/api/auth/logout", { method: "POST" });
     user.value = null;
   };

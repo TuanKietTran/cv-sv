@@ -57,7 +57,7 @@ const handleLogout = async () => {
                     <template v-if="authenticated">
                         <template v-if="user">
                             <NuxtLink to="/settings/cloud-data" class="btn btn-ghost btn-sm">Cloud data</NuxtLink>
-                            <span class="user-email">{{ user.email }}</span>
+                            <button class="btn btn-ghost btn-sm user-email" type="button" data-account-trigger aria-haspopup="dialog" @click="openAuthDialog('login')">{{ user.email }}</button>
                             <button
                                 class="btn btn-ghost btn-sm"
                                 type="button"
@@ -67,7 +67,7 @@ const handleLogout = async () => {
                             </button>
                         </template>
                         <template v-else>
-                            <button class="btn btn-ghost btn-sm" type="button" @click="openAuthDialog('login')">Sign in</button>
+                            <button class="btn btn-ghost btn-sm" type="button" data-account-trigger aria-haspopup="dialog" @click="openAuthDialog('login')">Sign in</button>
                             <button class="btn btn-primary btn-sm" type="button" @click="openAuthDialog('signup')">Create account</button>
                         </template>
                     </template>

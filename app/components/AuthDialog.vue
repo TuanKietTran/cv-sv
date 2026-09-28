@@ -334,7 +334,7 @@ onUnmounted(() => {
                         role="tabpanel"
                         aria-labelledby="account-tab-account"
                     >
-                        <p class="success-badge"><span aria-hidden="true">✓</span> Signed in</p>
+                        <p class="status-line"><span class="status-icon" aria-hidden="true">✓</span> Signed in</p>
                         <div class="profile">
                             <img v-if="avatarUrl" class="avatar" :src="avatarUrl" alt="" referrerpolicy="no-referrer">
                             <span v-else class="avatar avatar--fallback" aria-hidden="true">{{ avatarInitial }}</span>
@@ -381,7 +381,7 @@ onUnmounted(() => {
                                 <button class="secondary-button" type="button" @click="manageAccount">Manage account</button>
                             </div>
                         </template>
-                        <p v-else class="panel-copy">This account uses an email and password session managed by cv-sv.</p>
+                        <p v-else class="panel-copy">This account signs in with an email and password.</p>
                     </div>
                 </div>
                 <p v-if="signOutError" class="inline-error" role="alert">{{ signOutError }}</p>
@@ -461,6 +461,9 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* Only theme tokens: no per-theme colours, tints or shadows on controls.
+   Dividers use --border-strong because --border equals --bg-surface0 in
+   some themes and disappears against the dialog background. */
 .auth-backdrop {
     position: fixed;
     inset: 0;
@@ -479,9 +482,8 @@ onUnmounted(() => {
     outline: 0;
     color: var(--fg-text);
     background: var(--bg-mantle);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: var(--radius-lg);
-    box-shadow: 0 24px 80px color-mix(in srgb, var(--bg-crust) 70%, transparent);
 }
 .auth-dialog--settings { width: min(720px, 100%); }
 .dialog-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
@@ -490,78 +492,85 @@ onUnmounted(() => {
     width: 32px;
     height: 32px;
     border: 0;
-    border-radius: 50%;
+    border-radius: var(--radius-sm);
     color: var(--fg-subtext0);
     background: transparent;
     font-size: 23px;
+    line-height: 1;
     cursor: pointer;
 }
 .close-button:hover { color: var(--fg-text); background: var(--bg-surface0); }
-.mode-tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; background: var(--bg-surface0); border-radius: var(--radius-md); }
-.mode-tabs button { padding: 9px; border: 0; border-radius: calc(var(--radius-md) - 2px); color: var(--fg-subtext0); background: transparent; font-weight: 600; cursor: pointer; }
-.mode-tabs button:disabled { cursor: default; opacity: .6; }
-.mode-tabs button.active { color: var(--fg-text); background: var(--bg-mantle); box-shadow: 0 1px 4px color-mix(in srgb, var(--bg-crust) 35%, transparent); }
-.dialog-copy { margin: 24px 0 18px; }
-.dialog-copy h1 { margin: 0 0 8px; font-size: 24px; letter-spacing: -.02em; }
+
+/* Tabs: one shared look for the sign-in switch and the settings rail. */
+.mode-tabs, .settings-tabs { display: flex; gap: 4px; }
+.mode-tabs { padding-bottom: 12px; border-bottom: 1px solid var(--border-strong); }
+.settings-tabs { flex-direction: column; }
+.mode-tabs button, .settings-tabs button {
+    padding: 8px 12px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    color: var(--fg-subtext0);
+    background: transparent;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+}
+.mode-tabs button:hover:not(:disabled), .settings-tabs button:hover { color: var(--fg-text); background: var(--bg-surface0); }
+.mode-tabs button.active, .settings-tabs button.active { color: var(--fg-text); background: var(--bg-surface1); font-weight: 600; }
+.mode-tabs button:disabled { cursor: default; }
+
+.dialog-copy { margin: 20px 0 18px; }
+.dialog-copy h1 { margin: 0 0 8px; font-size: 22px; }
 .dialog-copy p, .privacy-note { margin: 0; color: var(--fg-subtext0); font-size: 14px; line-height: 1.55; }
 .clerk-loading { padding: 28px 0; color: var(--fg-subtext0); text-align: center; }
 .auth-error { display: grid; gap: 14px; justify-items: center; padding: 24px 0; text-align: center; }
-.auth-error p { margin: 0; color: var(--fg-subtext0); line-height: 1.5; }
-.privacy-note { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); font-size: 12px; }
+.auth-error p { margin: 0; color: var(--fg-subtext1); line-height: 1.5; }
+.privacy-note { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border-strong); font-size: 12px; }
 
 .settings-title { display: flex; align-items: center; gap: 10px; }
-.settings-title h1 { margin: 0; font-size: 18px; letter-spacing: -.01em; }
+.settings-title h1 { margin: 0; font-size: 18px; }
 .settings-layout { display: grid; grid-template-columns: 180px 1fr; gap: 24px; min-height: 300px; }
-.settings-rail { display: flex; flex-direction: column; justify-content: space-between; gap: 12px; padding-right: 16px; border-right: 1px solid var(--border); }
-.settings-tabs { display: flex; flex-direction: column; gap: 2px; }
-.settings-tabs button {
-    padding: 9px 12px;
-    border: 0;
-    border-radius: var(--radius-md);
-    color: var(--fg-subtext0);
-    background: transparent;
-    font-weight: 600;
-    text-align: left;
-    cursor: pointer;
-}
-.settings-tabs button:hover { color: var(--fg-text); background: var(--bg-surface0); }
-.settings-tabs button.active { color: var(--fg-text); background: var(--bg-surface0); box-shadow: inset 3px 0 0 var(--accent); }
-.sign-out-button {
-    padding: 9px 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    color: var(--red);
-    background: transparent;
-    font-weight: 600;
-    text-align: left;
-    cursor: pointer;
-}
-.sign-out-button:disabled { cursor: progress; opacity: .7; }
+.settings-rail { display: flex; flex-direction: column; justify-content: space-between; gap: 12px; padding-right: 16px; border-right: 1px solid var(--border-strong); }
 .settings-panel { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .settings-panel h2 { margin: 0; font-size: 18px; }
-.success-badge { display: inline-flex; align-self: flex-start; gap: 6px; margin: 0; padding: 4px 10px; border-radius: 999px; color: var(--green); background: color-mix(in srgb, var(--green) 14%, transparent); font-size: 13px; font-weight: 700; }
+.status-line { margin: 0; color: var(--fg-subtext1); font-size: 14px; font-weight: 600; }
+.status-icon { color: var(--green); }
 .profile { display: flex; align-items: center; gap: 14px; min-width: 0; }
-.avatar { width: 52px; height: 52px; flex: none; border-radius: 50%; object-fit: cover; }
-.avatar--fallback { display: grid; place-items: center; color: var(--bg-crust); background: var(--accent); font-size: 22px; font-weight: 700; }
+.avatar { width: 48px; height: 48px; flex: none; border-radius: 50%; object-fit: cover; }
+.avatar--fallback { display: grid; place-items: center; color: var(--fg-text); background: var(--bg-surface1); font-size: 20px; font-weight: 600; }
 .profile-text { min-width: 0; }
 .profile-text h2, .profile-text p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-text p { margin: 4px 0 0; color: var(--fg-subtext0); font-size: 14px; }
 .panel-copy { margin: 0; color: var(--fg-subtext0); font-size: 14px; line-height: 1.55; }
 .panel-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; }
-.primary-button, .secondary-button { padding: 9px 16px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; }
-.primary-button { border: 0; color: var(--bg-crust); background: var(--accent); }
-.primary-button:hover { background: var(--accent-hover); }
-.secondary-button { border: 1px solid var(--border); color: var(--fg-text); background: var(--bg-surface0); }
+
+/* Buttons follow the app's .btn-primary / .btn-secondary conventions. */
+.primary-button, .secondary-button, .sign-out-button {
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.primary-button { border: 1px solid var(--accent); color: var(--bg-crust); background: var(--accent); }
+.primary-button:hover { border-color: var(--accent-hover); background: var(--accent-hover); }
+.secondary-button, .sign-out-button { border: 1px solid var(--border-strong); color: var(--fg-subtext1); background: transparent; }
+.secondary-button:hover, .sign-out-button:hover:not(:disabled) { color: var(--fg-text); background: var(--bg-surface0); }
+.sign-out-button { padding: 8px 12px; color: var(--red); text-align: left; }
+.sign-out-button:hover:not(:disabled) { color: var(--red); }
+.sign-out-button:disabled { cursor: progress; opacity: .7; }
 .inline-error { margin: 14px 0 0; color: var(--red); font-size: 13px; }
 .muted { color: var(--fg-subtext0); }
 
 @media (max-width: 600px) {
     .settings-layout { grid-template-columns: 1fr; gap: 18px; min-height: 0; }
-    .settings-rail { flex-direction: row; align-items: center; padding: 0 0 12px; border-right: 0; border-bottom: 1px solid var(--border); overflow-x: auto; }
-    .settings-tabs { flex-direction: row; }
-    .settings-tabs button { white-space: nowrap; }
-    .settings-tabs button.active { box-shadow: inset 0 -3px 0 var(--accent); }
-    .sign-out-button { white-space: nowrap; }
+    .settings-rail { flex-direction: row; flex-wrap: wrap; align-items: center; padding: 0 0 12px; border-right: 0; border-bottom: 1px solid var(--border-strong); }
+    .settings-tabs { flex-direction: row; flex-wrap: wrap; }
+    .settings-tabs button { padding: 8px 10px; white-space: nowrap; }
+    .sign-out-button { margin-left: auto; white-space: nowrap; }
 }
 @media (max-width: 480px) {
     .auth-backdrop { align-items: end; padding: 0; }

@@ -216,6 +216,7 @@ const handleLogout = async () => {
 }
 
 .user-email {
+    display: inline-block;
     font-size: 13px;
     color: var(--fg-subtext0);
     max-width: 160px;

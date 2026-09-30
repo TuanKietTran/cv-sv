@@ -182,6 +182,7 @@ const deleteSelectedDocument = async () => {
     contextMenu.value = null;
     if (!window.confirm(`Delete ${documentLabel(selected)}? This cannot be undone.`)) return;
     await $fetch(`/api/cvs/${encodeURIComponent(selected.id)}`, { method: "DELETE" });
+    clearCvSessionBackup(selected.id);
     await reloadCvDocuments();
     if (route.path === documentPath(selected.id)) await navigateTo("/");
 };
